@@ -1,0 +1,210 @@
+---
+title: "JavaScript and Shadow DOM"
+description: "Executing JavaScript and working with Shadow DOM in Selenide"
+---
+
+Selenide provides straightforward APIs for executing JavaScript in the browser, working with elements inside Shadow DOM, and reading or writing browser storage. These are the escape hatches you reach for when the standard element API is not enough.
+
+## Executing JavaScript
+
+### executeJavaScript
+
+Run a JavaScript snippet synchronously and get the return value. Arguments passed after the script string are available inside the script as the `arguments` array.
+
+```java
+import static com.codeborne.selenide.Selenide.executeJavaScript;
+
+// Scroll an element into view
+executeJavaScript("arguments[0].scrollIntoView(true)", $("#target"));
+
+// Read a value from the DOM
+String title = executeJavaScript("return document.title");
+
+// Pass multiple arguments
+Long result = executeJavaScript(
+    "return arguments[0] + arguments[1]",
+    21L, 21L
+);
+```
+
+### executeAsyncJavaScript
+
+Run a script that completes asynchronously. The script receives a callback as its last argument in the `arguments` array and must call it when done.
+
+```java
+import static com.codeborne.selenide.Selenide.executeAsyncJavaScript;
+
+// Wait for a custom async operation and return its result
+String token = executeAsyncJavaScript(
+    "var done = arguments[arguments.length - 1];" +
+    "fetchAuthToken().then(t => done(t));"
+);
+```
+
+<Note>
+  The async script timeout is controlled by WebDriver's script timeout setting, not by Selenide's `timeout`. Use `WebDriverRunner.getWebDriver().manage().timeouts().scriptTimeout(Duration)` to adjust it.
+</Note>
+
+### $.execute — custom element commands
+
+For reusable custom actions on a specific element, implement the `Command` interface and call `$.execute()`:
+
+```java
+import com.codeborne.selenide.Command;
+import com.codeborne.selenide.Driver;
+import com.codeborne.selenide.SelenideElement;
+import com.codeborne.selenide.impl.WebElementSource;
+
+public class ScrollIntoCenter implements Command<Void> {
+    @Override
+    public Void execute(SelenideElement proxy, WebElementSource locator, Object[] args) {
+        Driver driver = locator.driver();
+        driver.executeJavaScript(
+            "arguments[0].scrollIntoView({block:'center'})",
+            locator.getWebElement()
+        );
+        return null;
+    }
+}
+
+// Usage
+$("#sticky-header").execute(new ScrollIntoCenter());
+```
+
+## Shadow DOM
+
+Shadow DOM encapsulates a component's internal DOM so that standard CSS selectors cannot reach inside it. Selenide provides dedicated selectors that cross shadow boundaries using JavaScript.
+
+### shadowCss — single shadow root
+
+Use `Selectors.shadowCss` (or the static import `shadowCss`) to find an element inside a shadow root hosted by a known element.
+
+```java
+import static com.codeborne.selenide.Selectors.shadowCss;
+
+// Find ".menu-item" inside the shadow root of "#nav-component"
+SelenideElement item = $(shadowCss(".menu-item", "#nav-component"));
+item.shouldBe(visible);
+item.click();
+```
+
+You can chain multiple hosts to traverse nested shadow roots:
+
+```java
+// .inner-btn lives inside #child-host, which lives inside #root-host
+SelenideElement btn = $(shadowCss(".inner-btn", "#root-host", "#child-host"));
+```
+
+The hosts are listed in order from outermost to innermost.
+
+### shadowDeepCss — crossing multiple shadow roots
+
+`shadowDeepCss` pierces all shadow roots without you needing to know the path of host elements. Use it when the shadow host chain is unknown or variable.
+
+```java
+import static com.codeborne.selenide.Selectors.shadowDeepCss;
+
+// Find ".submit-btn" anywhere inside any shadow root on the page
+SelenideElement btn = $(shadowDeepCss("#shadow-host #inner-host .submit-btn"));
+btn.click();
+```
+
+<Warning>
+  `deepShadowCss` uses a third-party JavaScript library to pierce all shadow roots. It may be slower than `shadowCss` for pages with many shadow components. Prefer `shadowCss` when the host path is known.
+</Warning>
+
+### Collections inside shadow DOM
+
+Both selectors work with `$$()` to return an `ElementsCollection`:
+
+```java
+ElementsCollection items = $$(shadowCss("li.option", "#dropdown-host"));
+items.shouldHaveSize(5);
+```
+
+## Browser storage
+
+### localStorage
+
+Access the browser's `localStorage` to read, write, or clear items:
+
+```java
+import static com.codeborne.selenide.Selenide.localStorage;
+
+// Write
+localStorage().setItem("token", "abc123");
+
+// Read
+String value = localStorage().getItem("token");
+
+// Remove
+localStorage().removeItem("token");
+
+// Clear all
+localStorage().clear();
+```
+
+Assert on `localStorage` state using `LocalStorageConditions`:
+
+```java
+import com.codeborne.selenide.LocalStorageConditions;
+import static com.codeborne.selenide.Selenide.localStorage;
+
+localStorage().shouldHave(LocalStorageConditions.item("token"));
+localStorage().shouldHave(LocalStorageConditions.itemWithValue("token", "abc123"));
+```
+
+### sessionStorage
+
+The `sessionStorage` API mirrors `localStorage`:
+
+```java
+import com.codeborne.selenide.SessionStorageConditions;
+import static com.codeborne.selenide.Selenide.sessionStorage;
+
+sessionStorage().setItem("cart", "[1,2,3]");
+sessionStorage().shouldHave(SessionStorageConditions.itemWithValue("cart", "[1,2,3]"));
+sessionStorage().clear();
+```
+
+## Zoom
+
+Zoom the page in or out by a factor. A value greater than `1.0` zooms in; less than `1.0` zooms out.
+
+```java
+import static com.codeborne.selenide.Selenide.zoom;
+
+zoom(1.5);  // zoom to 150 %
+zoom(0.75); // zoom to 75 %
+zoom(1.0);  // reset to 100 %
+```
+
+## Multiple browser instances with SelenideDriver
+
+When you need more than one browser open at the same time, create independent `SelenideDriver` instances rather than relying on the shared static driver.
+
+```java
+import com.codeborne.selenide.SelenideDriver;
+import com.codeborne.selenide.SelenideConfig;
+
+SelenideConfig configA = new SelenideConfig().browser("chrome");
+SelenideConfig configB = new SelenideConfig().browser("firefox");
+
+SelenideDriver driverA = new SelenideDriver(configA);
+SelenideDriver driverB = new SelenideDriver(configB);
+
+driverA.open("https://app.example.com");
+driverB.open("https://app.example.com");
+
+// Use instance methods instead of static Selenide methods
+driverA.$(".title").shouldHave(text("Welcome"));
+driverB.$(".title").shouldHave(text("Welcome"));
+
+// Close each driver explicitly when done
+driverA.close();
+driverB.close();
+```
+
+<Note>
+  `SelenideDriver` supports the same element API (`$`, `$$`, `open`, etc.) as the static `Selenide` class. JavaScript execution is also available: `driverA.executeJavaScript(...)`.
+</Note>

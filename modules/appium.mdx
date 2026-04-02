@@ -1,0 +1,270 @@
+---
+title: "Appium"
+description: "Testing Android and iOS mobile apps with Selenide and Appium"
+---
+
+The `selenide-appium` module adapts Selenide for mobile testing via Appium. It provides a concise fluent API, natural-language assertions, and cross-platform utilities so you can focus on test logic rather than driver boilerplate.
+
+## Add the dependency
+
+<CodeGroup>
+
+```xml Maven (pom.xml)
+<dependency>
+  <groupId>com.codeborne</groupId>
+  <artifactId>selenide-appium</artifactId>
+  <version>7.15.1</version>
+  <scope>test</scope>
+</dependency>
+```
+
+```groovy Gradle (build.gradle)
+testImplementation 'com.codeborne:selenide-appium:7.15.1'
+```
+
+</CodeGroup>
+
+## Set up a driver session
+
+<Steps>
+  <Step title="Implement WebDriverProvider">
+    Create a class that implements `WebDriverProvider` and configures the Appium driver for your target platform.
+
+    <Tabs>
+      <Tab title="Android">
+        ```java AndroidDriver.java
+        @NullMarked
+        public class AndroidDriverForApiDemos implements WebDriverProvider {
+
+          @Override
+          @CheckReturnValue
+          @NonNull
+          public WebDriver createDriver(Capabilities capabilities) {
+            UiAutomator2Options options = new UiAutomator2Options();
+            options.merge(capabilities);
+            options.setPlatformName("Android");
+            options.setPlatformVersion("9.0");
+            options.setDeviceName("Android Emulator");
+            options.setNewCommandTimeout(Duration.ofSeconds(11));
+            options.setFullReset(false);
+            options.setApp("path-to-apk-file");
+
+            try {
+              return new AndroidDriver(new URL("http://127.0.0.1:4723/"), options);
+            } catch (MalformedURLException e) {
+              throw new RuntimeException(e);
+            }
+          }
+        }
+        ```
+      </Tab>
+      <Tab title="iOS">
+        ```java IOSDriver.java
+        @NullMarked
+        public class IOSDriverProvider implements WebDriverProvider {
+
+          @Override
+          @CheckReturnValue
+          @NonNull
+          public WebDriver createDriver(Capabilities capabilities) {
+            XCUITestOptions options = new XCUITestOptions();
+            options.merge(capabilities);
+            options.setPlatformName("iOS");
+            options.setDeviceName("iPhone Simulator");
+            options.setApp("path-to-ipa-file");
+
+            try {
+              return new IOSDriver(new URL("http://127.0.0.1:4723/"), options);
+            } catch (MalformedURLException e) {
+              throw new RuntimeException(e);
+            }
+          }
+        }
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+  <Step title="Configure Selenide to use your driver">
+    Point `Configuration.browser` to the class name of your `WebDriverProvider` implementation:
+
+    ```java
+    Configuration.browser = AndroidDriverForApiDemos.class.getName();
+    ```
+  </Step>
+  <Step title="Launch the app">
+    Call `SelenideAppium.launchApp()` to start the driver session and open the app:
+
+    ```java
+    @Test
+    void testAndroidTap() {
+      Configuration.browser = AndroidDriverWithCalculator.class.getName();
+      SelenideAppium.launchApp();
+      $(AppiumBy.xpath(".//*[@text='Views']")).shouldBe(visible).click(tap());
+      $(AppiumBy.xpath(".//*[@text='Animation']")).shouldBe(visible);
+    }
+    ```
+  </Step>
+</Steps>
+
+## Deep links
+
+Open deep links on Android and iOS without navigating through the UI:
+
+```java
+SelenideAppium.openAndroidDeepLink("mydemoapprn://product-details/1", "com.saucelabs.mydemoapp.rn");
+SelenideAppium.openIOSDeepLink("mydemoapprn://product-details/1");
+```
+
+## Native gestures
+
+Use wrapper methods on any `SelenideElement` to perform native mobile gestures:
+
+```java
+// Tap
+$(AppiumBy.xpath(".//*[@text='Views']")).click(tap());
+$(AppiumBy.xpath(".//*[@text='Views']")).tap();
+
+// Double tap
+$(AppiumBy.xpath(".//*[@text='Views']")).doubleTap();
+
+// Tap with offset from element center
+$(AppiumBy.xpath(".//*[@text='Views']")).click(tapWithOffset(100, -60));
+
+// Long press
+$(AppiumBy.xpath(".//*[@text='People Names']")).click(longPress());
+$(AppiumBy.xpath(".//*[@text='People Names']")).click(longPressFor(ofSeconds(5)));
+$(AppiumBy.xpath(".//*[@text='People Names']")).tap(longPressFor(ofSeconds(4)));
+```
+
+## Drag and drop
+
+```java
+SelenideElement source = $(By.id("io.appium.android.apis:id/drag_dot_1")).shouldBe(visible);
+SelenideElement target = $(By.id("io.appium.android.apis:id/drag_dot_2")).shouldBe(visible);
+source.dragAndDrop(to(target));
+```
+
+## Getting the typed driver
+
+`AppiumDriverRunner` gives you a typed reference to the underlying driver without manual casting:
+
+```java
+AndroidDriver androidDriver = AppiumDriverRunner.getAndroidDriver();
+IOSDriver iosDriver         = AppiumDriverRunner.getIosDriver();
+boolean isAndroid           = AppiumDriverRunner.isAndroidDriver();
+boolean isIos               = AppiumDriverRunner.isIosDriver();
+```
+
+## Cross-platform assertions
+
+Android and iOS often expose the same data under different attribute names. `CombinedAttribute` lets you write a single assertion that works on both platforms.
+
+### Single element
+
+```java
+// If Android: assert "content-desc" attribute equals "value"
+// If iOS:     assert "name" attribute equals "value"
+CombinedAttribute combinedAttribute = CombinedAttribute.android("text").ios("name");
+$(element).shouldHave(AppiumCondition.attribute(combinedAttribute, "value"));
+```
+
+### Collection
+
+```java
+CombinedAttribute combinedAttribute = CombinedAttribute.android("content-desc").ios("label");
+List<String> expectedList = Arrays.asList("API Demos", "KeyEventText", "Linkify", "LogTextBox", "Marquee", "Unicode");
+
+$$(AppiumBy.xpath("//android.widget.TextView"))
+    .shouldHave(AppiumCollectionCondition.attributes(combinedAttribute, expectedList));
+```
+
+<Tip>
+  `CombinedAttribute` eliminates the `if (isAndroid) ... else ...` branching that is common in Appium tests.
+</Tip>
+
+## Scrolling
+
+Selenide-Appium handles scrolling to elements automatically:
+
+```java
+// Scroll down up to 30 times (default) to find element
+$(By.xpath(".//*[@text='Tabs']")).scrollTo().click();
+
+// Scroll down up to 10 times
+$(By.xpath(".//*[@text='Tabs']")).scroll(with(DOWN, 10));
+
+// Scroll up up to 30 times
+$(By.xpath(".//*[@text='Animation']")).scroll(up());
+
+// Scroll up with custom swipe height (relative to device height)
+$(By.xpath(".//*[@text='Animation']")).scroll(up(0.15f, 0.60f));
+
+// Scroll down with custom swipe height
+$(By.xpath(".//*[@text='Animation']")).scroll(down(0.15f, 0.60f));
+```
+
+## Swiping
+
+```java
+// Swipe right up to 30 times to find element
+$(By.xpath(".//*[@text='Tabs']")).swipeTo().click();
+
+// Swipe left up to 30 times
+$(By.xpath(".//*[@text='Tabs']")).swipe(left()).click();
+
+// Swipe left up to 10 times
+$(By.xpath(".//*[@text='Tabs']")).swipe(left(10)).click();
+```
+
+## Dynamic cross-platform locators
+
+Page factory does not work well with dynamic locators. Use `CombinedBy` to build locators at runtime for both platforms:
+
+```java
+int index = 1;
+CombinedBy username = CombinedBy
+    .android(AppiumBy.xpath("(//android.widget.EditText)[" + index + "]"))
+    .ios(AppiumBy.xpath("(//XCUIElementTypeTextField)[" + index + "]"));
+
+$(username).setValue("selenide-rocks");
+```
+
+## Custom commands
+
+Extend `SelenideAppiumElement` and register a custom `Command` to add your own methods to elements.
+
+**Define the element interface:**
+
+```java
+public interface CustomElement extends SelenideAppiumElement {
+  CustomElement myCommand(Object... args);
+}
+```
+
+**Use it in a Page Object:**
+
+```java
+public class MyPage {
+  @AndroidFindBy(id = "element")
+  public CustomElement element;
+}
+```
+
+**Implement the command:**
+
+```java
+public class CustomCommand implements Command<CustomElement> {
+  public CustomElement execute(SelenideElement proxy, WebElementSource source, @Nullable Object[] args) {
+    // your implementation here
+    return (CustomElement) proxy;
+  }
+}
+```
+
+**Register and use:**
+
+```java
+Commands.getInstance().add("myCommand", new CustomCommand());
+MyPage page = Selenide.page(MyPage.class);
+page.element.myCommand("argument");
+```

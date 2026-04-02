@@ -1,0 +1,162 @@
+---
+title: "Installation"
+description: "Add Selenide to your Java project"
+---
+
+Selenide is published to [Maven Central](https://central.sonatype.com/search?q=selenide&namespace=com.codeborne) under the `com.codeborne` group. Add it as a test dependency using your build tool.
+
+## Requirements
+
+| Requirement | Minimum version |
+|-------------|-----------------|
+| Java | 11 |
+| Selenium WebDriver | 4.0 (included transitively) |
+| Maven | 3.6+ |
+| Gradle | 7.0+ |
+
+<Note>
+Selenide 7.x requires **Java 11 or later**. If you are on Java 8, use Selenide 6.x.
+</Note>
+
+## Add the dependency
+
+<CodeGroup>
+
+```xml Maven (pom.xml)
+<dependency>
+  <groupId>com.codeborne</groupId>
+  <artifactId>selenide</artifactId>
+  <version>7.15.1</version>
+  <scope>test</scope>
+</dependency>
+```
+
+```groovy Gradle (build.gradle)
+dependencies {
+  testImplementation 'com.codeborne:selenide:7.15.1'
+}
+```
+
+```kotlin Gradle Kotlin (build.gradle.kts)
+dependencies {
+  testImplementation("com.codeborne:selenide:7.15.1")
+}
+```
+
+</CodeGroup>
+
+<Tip>
+Selenide declares `selenium-java` as an `api` dependency, so Selenium WebDriver is included automatically. You do not need to add it separately.
+</Tip>
+
+## Selenium WebDriver compatibility
+
+Selenide 7.15.1 is built and tested against **Selenium WebDriver 4.41.0**. Because Selenide exposes the Selenium API directly (you can always call `WebDriver` methods when needed), you should keep the Selenium version consistent with what Selenide brings in.
+
+To check which Selenium version a given Selenide release uses, inspect the `seleniumVersion` property in the Selenide `gradle/dependencies.gradle` file on GitHub, or look at the resolved dependency tree for your project:
+
+<CodeGroup>
+
+```bash Maven
+mvn dependency:tree -Dincludes=org.seleniumhq.selenium
+```
+
+```bash Gradle
+./gradlew dependencies --configuration testRuntimeClasspath | grep selenium
+```
+
+</CodeGroup>
+
+If you need to override the Selenium version (not generally recommended), you can use dependency management:
+
+<CodeGroup>
+
+```xml Maven — override Selenium version
+<dependencyManagement>
+  <dependencies>
+    <dependency>
+      <groupId>org.seleniumhq.selenium</groupId>
+      <artifactId>selenium-java</artifactId>
+      <version>4.41.0</version>
+    </dependency>
+  </dependencies>
+</dependencyManagement>
+```
+
+```groovy Gradle — override Selenium version
+configurations.all {
+  resolutionStrategy.force 'org.seleniumhq.selenium:selenium-java:4.41.0'
+}
+```
+
+</CodeGroup>
+
+## Browser driver setup
+
+Since Selenium 4, **driver binaries are managed automatically** by Selenium Manager. When your test opens a browser, Selenide (via Selenium) detects your installed browser version and downloads the correct driver binary on first use.
+
+<Warning>
+Selenium Manager requires internet access on the first run to download driver binaries. In air-gapped CI environments, you must either pre-cache the binaries or configure a driver path manually.
+</Warning>
+
+To point Selenide to a specific driver binary, set the appropriate system property before opening the browser:
+
+```java
+// Chrome
+System.setProperty("webdriver.chrome.driver", "/usr/local/bin/chromedriver");
+
+// Firefox
+System.setProperty("webdriver.gecko.driver", "/usr/local/bin/geckodriver");
+
+// Edge
+System.setProperty("webdriver.edge.driver", "/usr/local/bin/msedgedriver");
+```
+
+## System properties overview
+
+Selenide is configured through the `Configuration` class at runtime. The most common settings:
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `Configuration.browser` | `"chrome"` | Browser to use: `"chrome"`, `"firefox"`, `"edge"`, `"safari"` |
+| `Configuration.baseUrl` | `"http://localhost:8080"` | Base URL for `open("/path")` calls |
+| `Configuration.timeout` | `4000` | Default wait timeout in milliseconds |
+| `Configuration.headless` | `false` | Run browser in headless mode |
+| `Configuration.reportsFolder` | `"build/reports/tests"` | Where screenshots are saved on failure |
+| `Configuration.downloadsFolder` | `"build/downloads"` | Where downloaded files are saved |
+
+For the full configuration reference, see the [configuration overview](/configuration/overview).
+
+<Tip>
+You can also set configuration values using Java system properties on the command line, for example: `-Dselenide.browser=firefox -Dselenide.headless=true`. This is useful for overriding settings in CI without changing test code.
+</Tip>
+
+## Verifying the installation
+
+After adding the dependency, verify it resolves correctly by running a minimal test:
+
+```java
+import org.junit.jupiter.api.Test;
+import static com.codeborne.selenide.Selenide.*;
+
+public class SmokeTest {
+  @Test
+  void selenideLoads() {
+    open("about:blank");
+    closeWebDriver();
+  }
+}
+```
+
+If the test passes (a browser window opens and closes), your installation is working correctly.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Quick start" icon="rocket" href="/quickstart">
+    Write your first real Selenide test
+  </Card>
+  <Card title="Configuration" icon="gear" href="/configuration/overview">
+    Full reference for all configuration options
+  </Card>
+</CardGroup>

@@ -1,80 +1,139 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: "Quick Start"
+description: "Write your first Selenide test in minutes"
 ---
 
-## Get started in three steps
+This guide walks you from zero to a working browser test. You need Java 11+ and Maven or Gradle.
 
-Get your documentation site running locally and make your first customization.
+<Steps>
+  <Step title="Add the dependency">
+    Add Selenide to your project. It brings Selenium WebDriver as a transitive dependency — you do not need to add it separately.
 
-### Step 1: Set up your local environment
+    <CodeGroup>
+    ```xml Maven pom.xml
+    <dependency>
+        <groupId>com.codeborne</groupId>
+        <artifactId>selenide</artifactId>
+        <version>7.15.1</version>
+        <scope>test</scope>
+    </dependency>
+    ```
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    ```groovy Gradle build.gradle
+    testImplementation 'com.codeborne:selenide:7.15.1'
+    ```
 
-### Step 2: Deploy your changes
+    ```kotlin Gradle Kotlin build.gradle.kts
+    testImplementation("com.codeborne:selenide:7.15.1")
+    ```
+    </CodeGroup>
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    <Note>
+      Selenide manages WebDriver binaries automatically via Selenium Manager (bundled with Selenium 4). You do not need to download ChromeDriver or GeckoDriver manually.
+    </Note>
+  </Step>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+  <Step title="Add the static imports">
+    Add these two static imports to your test class. They bring the entire Selenide API into scope.
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+    ```java
+    import static com.codeborne.selenide.Selenide.*;
+    import static com.codeborne.selenide.Condition.*;
+    ```
 
-### Step 3: Go live
+    With these imports, you can call `open()`, `$()`, `$$()` and use conditions like `visible`, `text("...")` directly — no class prefixes needed.
+  </Step>
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+  <Step title="Configure the base URL">
+    Set `Configuration.baseUrl` to your application's base URL. All calls to `open("/path")` resolve relative to this URL.
+
+    ```java
+    Configuration.baseUrl = "https://the-internet.herokuapp.com";
+    ```
+
+    You can set this once in a `@BeforeAll` method, or globally in a base test class.
+  </Step>
+
+  <Step title="Write a test">
+    Here is a complete JUnit 5 test that opens a login page, fills in credentials, and asserts the result:
+
+    ```java LoginTest.java
+    import com.codeborne.selenide.Configuration;
+    import org.junit.jupiter.api.BeforeAll;
+    import org.junit.jupiter.api.Test;
+
+    import static com.codeborne.selenide.Selenide.*;
+    import static com.codeborne.selenide.Condition.*;
+
+    public class LoginTest {
+
+        @BeforeAll
+        static void setup() {
+            Configuration.baseUrl = "https://the-internet.herokuapp.com";
+        }
+
+        @Test
+        void successfulLogin() {
+            open("/login");
+            $("#username").setValue("tomsmith");
+            $("#password").setValue("SuperSecretPassword!");
+            $("[type=submit]").click();
+            $(".flash.success").shouldHave(text("You logged into a secure area!"));
+        }
+
+        @Test
+        void failedLogin() {
+            open("/login");
+            $("#username").setValue("wrong");
+            $("#password").setValue("wrong");
+            $("[type=submit]").click();
+            $(".flash.error").shouldBe(visible);
+        }
+    }
+    ```
+
+    Notice:
+    - `open("/login")` — opens the page (relative to `baseUrl`)
+    - `$("css")` — finds a single element
+    - `.setValue(text)` — types into an input
+    - `.click()` — clicks the element
+    - `.shouldHave(text(...))` — asserts the element contains a text substring
+    - `.shouldBe(visible)` — asserts the element is visible
+    - All assertions wait automatically (default: 4 seconds) before failing
+  </Step>
+
+  <Step title="Run the test">
+    <CodeGroup>
+    ```bash Maven
+    mvn test -Dtest=LoginTest
+    ```
+
+    ```bash Gradle
+    ./gradlew test --tests LoginTest
+    ```
+    </CodeGroup>
+
+    Selenide opens Chrome (the default browser), runs through your test steps, and closes the browser when done. If an assertion fails, a screenshot and the page HTML are saved automatically to `build/reports/tests/`.
+
+    <Tip>
+      Run headless in CI: set `Configuration.headless = true` in your setup method, or pass `-Dselenide.headless=true` on the command line.
+    </Tip>
+  </Step>
+</Steps>
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
-
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Installation" icon="box" href="/installation">
+    Full dependency details, Java version requirements, and Selenium compatibility
+  </Card>
+  <Card title="Configuration" icon="gear" href="/configuration/overview">
+    Browser selection, timeouts, headless mode, and all configuration options
+  </Card>
+  <Card title="Core API — Elements" icon="code" href="/core/elements">
+    Everything you can do with `$()` and `SelenideElement`
+  </Card>
+  <Card title="Conditions" icon="filter" href="/core/conditions">
+    All built-in assertions: text, attribute, visibility, and more
+  </Card>
 </CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>

@@ -1,0 +1,105 @@
+---
+title: "Selenoid"
+description: "Running Selenide tests with Selenoid containers"
+---
+
+<Warning>
+  **Selenoid is no longer maintained.** The [Selenoid](https://github.com/aerokube/selenoid) project has been discontinued, and the `selenide-selenoid` plugin is deprecated. Use [`selenide-moon`](/modules/moon) or [`selenide-grid`](/modules/grid) instead. Running the browser locally on the same machine as your tests is also a valid and often faster alternative.
+</Warning>
+
+## What is Selenoid?
+
+[Selenoid](https://aerokube.com/selenoid/) is an open-source implementation of the Selenium Hub that runs browsers in Docker containers. It was developed by Aerokube as a lightweight, fast alternative to the official Selenium Grid.
+
+Most Selenide features work with Selenoid out of the box. However, a few capabilities — file downloads and clipboard access — require additional integration because the browser runs inside an isolated container. The `selenide-selenoid` plugin bridges that gap.
+
+## Add the dependency
+
+<CodeGroup>
+
+```xml Maven (pom.xml)
+<dependency>
+  <groupId>com.codeborne</groupId>
+  <artifactId>selenide-selenoid</artifactId>
+  <version>7.15.1</version>
+  <scope>test</scope>
+</dependency>
+```
+
+```groovy Gradle (build.gradle)
+testImplementation 'com.codeborne:selenide-selenoid:7.15.1'
+```
+
+</CodeGroup>
+
+## Connect to Selenoid
+
+Set `Configuration.remote` to point to your Selenoid instance before your tests run:
+
+```java
+Configuration.remote = "http://selenoid:4444/wd/hub";
+```
+
+<Tip>
+  Replace `selenoid` with the hostname or IP address of your Selenoid server. If running locally with Docker Compose, use the service name from your compose file.
+</Tip>
+
+## Features
+
+### File downloads
+
+By default, Selenide downloads files to the local filesystem. When the browser runs inside a Selenoid container, the downloaded file is not accessible from the test machine. The plugin retrieves the file using the [Selenoid API](https://aerokube.com/selenoid/latest/#_accessing_files_downloaded_with_browser).
+
+```java
+File report = $("a#report").download(file().withMethod(FOLDER));
+```
+
+All four download methods are supported: `FOLDER`, `CDP`, `HTTPGET`, and `PROXY`.
+
+<Note>
+  `HTTPGET` and `PROXY` download directly over the network and do not require the plugin. `FOLDER` and `CDP` require it because they access the container's filesystem.
+</Note>
+
+### Clipboard access
+
+Read and write the clipboard inside the Selenoid container:
+
+```java
+clipboard().setText("Selenoid Shadow");
+clipboard().shouldHave(content("Selenoid Shadow"));
+```
+
+### BasicAuth
+
+The plugin includes support for HTTP BasicAuth, so you can test pages behind authentication without extra configuration.
+
+## How it works
+
+When you call `$("a#report").download()`, the plugin:
+
+<Steps>
+  <Step title="Clicks the element">
+    Triggers the download by clicking the link or button.
+  </Step>
+  <Step title="Waits for the browser to download">
+    Lets the browser save the file to its default download location inside the container.
+  </Step>
+  <Step title="Fetches the file via the Selenoid API">
+    Retrieves the file from the container using the Selenoid file-access API and returns it to your test.
+  </Step>
+</Steps>
+
+## Migrate to Moon or Grid
+
+Because Selenoid is no longer maintained, migrate to one of these actively supported alternatives:
+
+<CardGroup cols={2}>
+  <Card title="selenide-moon" icon="moon" href="/modules/moon">
+    Moon is Aerokube's cloud browser platform and the recommended successor to Selenoid. It supports file downloads, clipboard, and BasicAuth.
+  </Card>
+  <Card title="selenide-grid" icon="grid-2x2" href="/modules/grid">
+    Use the official Selenium Grid if you prefer a vendor-neutral, self-hosted solution. It supports file downloads.
+  </Card>
+</CardGroup>
+
+The API is identical — replace the dependency and update `Configuration.remote`. Your test code does not need to change.

@@ -1,0 +1,191 @@
+---
+title: "Timeouts and assertions"
+description: "Control waiting behavior and assertion modes"
+---
+
+Selenide's core strength is its built-in smart waiting. Instead of adding explicit `Thread.sleep()` calls, you describe the condition you expect, and Selenide polls until it is true or the timeout expires.
+
+## Timeout
+
+`Configuration.timeout` controls how long Selenide waits for a condition before failing the assertion. The default is 4000 milliseconds (4 seconds).
+
+```java
+Configuration.timeout = 4000; // default
+Configuration.timeout = 8000; // slower applications
+```
+
+Or via system property:
+
+```bash
+mvn test -Dselenide.timeout=8000
+```
+
+This timeout applies to every `should*` call:
+
+```java
+$("#submit").shouldBe(visible);       // waits up to Configuration.timeout
+$(".result").shouldHave(text("Done")); // same timeout
+```
+
+<Warning>
+Setting the timeout too high slows down your test suite when tests genuinely fail, because Selenide keeps retrying until the timeout expires. Choose the smallest value that keeps your tests stable.
+</Warning>
+
+---
+
+## Polling interval
+
+`Configuration.pollingInterval` controls how frequently Selenide re-checks a condition during the wait loop. The default is 200 milliseconds.
+
+```java
+Configuration.pollingInterval = 200; // default — check every 200ms
+Configuration.pollingInterval = 50;  // more aggressive polling
+```
+
+Reducing the polling interval makes Selenide react faster to conditions becoming true, at the cost of slightly higher CPU usage.
+
+---
+
+## Overriding timeout per assertion
+
+You can override the timeout for a single assertion without changing the global setting. Pass a `Duration` as the last argument to `should*` methods:
+
+```java
+import java.time.Duration;
+
+// Wait up to 10 seconds for this specific element
+$("#slow-widget").shouldBe(visible, Duration.ofSeconds(10));
+
+// Verify something is gone quickly — fail fast after 500ms
+$("#spinner").shouldNotBe(visible, Duration.ofMillis(500));
+
+// Use on collections too
+$$(".item").shouldHave(size(5), Duration.ofSeconds(15));
+```
+
+<Tip>
+Per-element timeouts are ideal for one-off slow operations (initial page load, file processing) while keeping the global timeout short for everything else.
+</Tip>
+
+---
+
+## Assertion mode
+
+`Configuration.assertionMode` controls how Selenide reports failures when multiple assertions run in the same test.
+
+### STRICT (default)
+
+The test fails immediately on the first failed assertion. No further code in the test runs.
+
+```java
+Configuration.assertionMode = AssertionMode.STRICT;
+```
+
+```java
+$("#name").shouldHave(text("Alice"));   // fails here if wrong
+$("#email").shouldHave(text("@example")); // never reached if above fails
+```
+
+### SOFT
+
+All assertions run regardless of failures. Selenide collects every failure and reports them all together at the end of the test.
+
+```java
+import com.codeborne.selenide.AssertionMode;
+
+Configuration.assertionMode = AssertionMode.SOFT;
+```
+
+```java
+$("#name").shouldHave(text("Alice"));    // failure recorded, test continues
+$("#email").shouldHave(text("@example")); // also checked
+// → test fails at end with both failures listed
+```
+
+<Note>
+Soft assertions are most useful on verification-heavy tests (e.g., checking a summary page) where you want to see all mismatches in a single run rather than fixing them one by one.
+</Note>
+
+### Soft assertions with JUnit 5
+
+Use Selenide's JUnit 5 extension to activate soft assertions automatically for each test method:
+
+```java
+import com.codeborne.selenide.junit5.SoftAssertsExtension;
+import org.junit.jupiter.api.extension.ExtendWith;
+
+@ExtendWith(SoftAssertsExtension.class)
+class CheckoutPageTest {
+
+    @Test
+    void orderSummaryIsCorrect() {
+        open("/checkout/summary");
+        $("#product-name").shouldHave(text("Widget"));
+        $("#quantity").shouldHave(text("2"));
+        $("#total").shouldHave(text("$19.98"));
+        // All three are checked; any failures are reported together
+    }
+}
+```
+
+Alternatively, use the `SoftAssertions` class to scope soft assertions to a specific block:
+
+```java
+import com.codeborne.selenide.impl.SoftAssertions;
+
+SoftAssertions.assertSoftly(softly -> {
+    softly.$("#name").shouldHave(text("Alice"));
+    softly.$("#role").shouldHave(text("Admin"));
+});
+```
+
+---
+
+## Text check mode
+
+`Configuration.textCheck` controls how text assertions match the content of an element.
+
+### PARTIAL_TEXT (current default)
+
+`shouldHave(text("Hello"))` passes when the element contains `"Hello"` anywhere in its text, including `"Hello World"`.
+
+```java
+Configuration.textCheck = TextCheck.PARTIAL_TEXT;
+
+$("h1").shouldHave(text("Hello")); // matches "Hello", "Hello World", "Say Hello"
+```
+
+### FULL_TEXT
+
+`shouldHave(text("Hello"))` passes only when the element's trimmed text is exactly `"Hello"`.
+
+```java
+Configuration.textCheck = TextCheck.FULL_TEXT;
+
+$("h1").shouldHave(text("Hello"));       // matches only "Hello"
+$("h1").shouldHave(text("Hello World")); // required for "Hello World"
+```
+
+<Warning>
+`FULL_TEXT` will become the default in Selenide 8.0.0. If you rely on partial matching, either keep `PARTIAL_TEXT` explicitly or use `shouldHave(partialText("Hello"))` to make your intent clear.
+</Warning>
+
+---
+
+## Reopen browser on fail
+
+When `reopenBrowserOnFail` is `true` (the default), Selenide closes and reopens the browser when a test fails. This prevents a browser left in a broken state from corrupting subsequent tests.
+
+```java
+Configuration.reopenBrowserOnFail = true;  // default
+```
+
+Disable it if you want to inspect the browser state after a failure (for example, during local debugging):
+
+```java
+Configuration.reopenBrowserOnFail = false;
+```
+
+<Note>
+Even with `reopenBrowserOnFail = false`, Selenide still creates a fresh browser for each test class by default. The setting only affects what happens at the boundary between a failing test and the next one in the same class.
+</Note>

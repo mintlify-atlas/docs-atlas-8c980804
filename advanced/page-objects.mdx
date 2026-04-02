@@ -1,0 +1,238 @@
+---
+title: "Page objects"
+description: "Using the Page Object pattern with Selenide"
+---
+
+The Page Object pattern encapsulates the structure of a page into a class, keeping locators and page interactions out of your test methods. Selenide integrates with the standard Selenium `PageFactory` while adding first-class support for `SelenideElement`, `ElementsCollection`, and container components.
+
+## Basic page object
+
+Declare a class with `SelenideElement` fields. Selenide initialises them lazily — element lookup happens only when you interact with or assert on a field.
+
+```java
+import com.codeborne.selenide.SelenideElement;
+import org.openqa.selenium.support.FindBy;
+
+public class LoginPage {
+
+    @FindBy(name = "username")
+    private SelenideElement usernameInput;
+
+    @FindBy(name = "password")
+    private SelenideElement passwordInput;
+
+    @FindBy(id = "submit")
+    private SelenideElement submitButton;
+
+    public void login(String user, String password) {
+        usernameInput.setValue(user);
+        passwordInput.setValue(password);
+        submitButton.click();
+    }
+}
+```
+
+## Instantiating a page object
+
+Use `Selenide.page()` to create and initialise a page object:
+
+```java
+import static com.codeborne.selenide.Selenide.page;
+
+LoginPage loginPage = page(LoginPage.class);
+loginPage.login("admin", "secret");
+```
+
+You can also pass an existing instance:
+
+```java
+LoginPage loginPage = page(new LoginPage());
+```
+
+<Tip>
+  Call `page()` after `open()` so the browser is already initialised before element fields are decorated.
+</Tip>
+
+## @FindBy annotations
+
+Selenide supports all standard Selenium `@FindBy` variants:
+
+```java
+import org.openqa.selenium.support.FindBy;
+import org.openqa.selenium.support.FindBys;
+import org.openqa.selenium.support.FindAll;
+
+public class SearchPage {
+
+    // Single locator strategy
+    @FindBy(css = "#search-input")
+    private SelenideElement searchInput;
+
+    // Chain of locators (AND logic — each must be a child of the previous)
+    @FindBys({
+        @FindBy(css = ".results"),
+        @FindBy(css = ".item")
+    })
+    private ElementsCollection nestedItems;
+
+    // Union of locators (OR logic)
+    @FindAll({
+        @FindBy(css = ".primary-btn"),
+        @FindBy(css = ".secondary-btn")
+    })
+    private ElementsCollection allButtons;
+}
+```
+
+## ElementsCollection fields
+
+Use `ElementsCollection` with `@FindBy` to declare a collection of matching elements:
+
+```java
+import com.codeborne.selenide.ElementsCollection;
+import org.openqa.selenium.support.FindBy;
+
+public class ProductListPage {
+
+    @FindBy(css = ".product-card")
+    private ElementsCollection productCards;
+
+    public void assertProductCount(int expected) {
+        productCards.shouldHave(CollectionCondition.size(expected));
+    }
+
+    public SelenideElement getProduct(int index) {
+        return productCards.get(index);
+    }
+}
+```
+
+## @As — human-readable aliases
+
+Annotate fields with `@As` to give elements a readable name that appears in error messages and reports. This is especially useful when a CSS selector alone is not descriptive enough.
+
+```java
+import com.codeborne.selenide.As;
+import com.codeborne.selenide.SelenideElement;
+import org.openqa.selenium.support.FindBy;
+
+public class CheckoutPage {
+
+    @As("Place order button")
+    @FindBy(css = "button[data-testid='place-order']")
+    private SelenideElement placeOrderButton;
+
+    @As("Order items list")
+    @FindBy(css = ".order-summary .item")
+    private ElementsCollection orderItems;
+}
+```
+
+When an assertion fails, the error message uses `"Place order button"` instead of the raw CSS selector.
+
+<Note>
+  `@As` only takes effect when the field is initialised by `SelenidePageFactory` (i.e. via `Selenide.page()`). Fields set manually or pre-assigned do not use the alias.
+</Note>
+
+## Container objects
+
+A `Container` is a reusable page component — a group of elements scoped to a specific part of the page. Declare it by implementing the `Container` interface.
+
+```java
+import com.codeborne.selenide.Container;
+import com.codeborne.selenide.SelenideElement;
+import org.openqa.selenium.support.FindBy;
+
+public class NavigationBar implements Container {
+
+    @FindBy(css = ".nav-logo")
+    public SelenideElement logo;
+
+    @FindBy(css = ".nav-links a")
+    public ElementsCollection links;
+}
+```
+
+Use `@FindBy` on the container field in the parent page object to scope element lookup to the container's root element:
+
+```java
+import org.openqa.selenium.support.FindBy;
+
+public class HomePage {
+
+    @FindBy(css = "nav#main-nav")
+    private NavigationBar nav;
+
+    public void clickLogo() {
+        nav.logo.click();
+    }
+}
+```
+
+### Shadow DOM containers
+
+Annotate a `Container` class or field with `@Container.ShadowRoot` to tell Selenide that its elements live inside a shadow root:
+
+```java
+import com.codeborne.selenide.Container;
+
+@Container.ShadowRoot
+public class ShadowMenu implements Container {
+
+    @FindBy(css = ".menu-item")
+    public ElementsCollection items;
+}
+```
+
+### @Container.Self
+
+Inject the container's own root element into a field using `@Container.Self`:
+
+```java
+public class Card implements Container {
+
+    @Container.Self
+    private SelenideElement root;
+
+    @FindBy(css = ".card-title")
+    public SelenideElement title;
+
+    public void assertVisible() {
+        root.shouldBe(visible);
+    }
+}
+```
+
+## Nested page objects
+
+Page objects can contain other page objects by using container fields. Nesting is unlimited:
+
+```java
+public class DashboardPage {
+
+    @FindBy(css = "header")
+    private Header header;
+
+    @FindBy(css = "aside.sidebar")
+    private Sidebar sidebar;
+
+    public Header header() { return header; }
+    public Sidebar sidebar() { return sidebar; }
+}
+```
+
+Each nested object's elements are resolved relative to that object's root element.
+
+## SelenidePageFactory
+
+`SelenidePageFactory` is the Selenide implementation of Selenium's `PageFactory`. It initialises `SelenideElement` and `ElementsCollection` fields — including nested containers — and applies `@As` aliases.
+
+You do not normally call it directly; `Selenide.page()` uses it internally. If you need to initialise elements manually (for example, inside a custom DI framework), you can call it directly:
+
+```java
+import com.codeborne.selenide.WebDriverRunner;
+import com.codeborne.selenide.impl.SelenidePageFactory;
+
+SelenidePageFactory factory = new SelenidePageFactory();
+factory.page(WebDriverRunner.driver(), myPageObject);
+```

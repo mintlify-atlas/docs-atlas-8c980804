@@ -1,97 +1,71 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "Selenide — Concise UI Tests with Java"
+description: "Write fast, readable, and maintainable browser tests in Java. Selenide wraps Selenium WebDriver with a fluent API and automatic waiting."
 ---
 
-## Setting up
+Selenide is a Java framework for writing UI tests that are easy to read and easy to maintain. It wraps Selenium WebDriver with a concise fluent API, built-in automatic waiting for dynamic content, and natural-language assertions — so you focus on test logic, not WebDriver boilerplate.
 
-Get your documentation site up and running in minutes.
+```java
+@Test
+public void login() {
+  open("/login");
+  $(By.name("user.name")).setValue("johny");
+  $("#submit").click();
+  $("#username").shouldHave(text("Hello, Johny!"));
+}
+```
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Write your first Selenide test in under five minutes
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Installation" icon="box" href="/installation">
+    Add Selenide to Maven, Gradle, or any JVM project
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Core API" icon="code" href="/core/elements">
+    Explore element selection, actions, and assertions
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Configuration" icon="gear" href="/configuration/overview">
+    Configure browsers, timeouts, downloads, and more
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## Why Selenide?
 
-Everything you need to create world-class documentation.
+<CardGroup cols={2}>
+  <Card title="Automatic waiting" icon="clock">
+    No more `Thread.sleep()`. Selenide waits for elements automatically using a configurable timeout and polling interval.
+  </Card>
+  <Card title="Readable assertions" icon="check">
+    `shouldBe(visible)`, `shouldHave(text("Hello"))` — assertions read like plain English and produce clear failure messages.
+  </Card>
+  <Card title="Ajax-friendly" icon="bolt">
+    Built for real-world apps. Selenide retries failed conditions until the timeout expires, handling dynamic content gracefully.
+  </Card>
+  <Card title="Built-in screenshots" icon="camera">
+    On every test failure, Selenide automatically captures a screenshot and saves the page source for diagnosis.
+  </Card>
+</CardGroup>
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+## Explore the docs
 
-## Need inspiration?
-
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+<CardGroup cols={2}>
+  <Card title="Element conditions" icon="filter" href="/core/conditions">
+    Full reference of all built-in conditions: text, attribute, CSS class, visibility, and more
+  </Card>
+  <Card title="Collections" icon="list" href="/core/collections">
+    Assert on lists of elements with `$$()` and `CollectionCondition`
+  </Card>
+  <Card title="File downloads" icon="download" href="/advanced/file-downloads">
+    Download files via HTTP, CDP, or proxy — even from remote browsers
+  </Card>
+  <Card title="Page Objects" icon="layer-group" href="/advanced/page-objects">
+    Integrate Selenide with the Page Object pattern using `SelenidePageFactory`
+  </Card>
+  <Card title="Appium module" icon="mobile" href="/modules/appium">
+    Test Android and iOS apps with the same Selenide API
+  </Card>
+  <Card title="Selenium Grid" icon="network-wired" href="/modules/grid">
+    Run tests in parallel across a Selenium Grid cluster
+  </Card>
+</CardGroup>

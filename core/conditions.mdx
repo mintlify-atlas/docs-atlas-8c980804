@@ -1,0 +1,553 @@
+---
+title: "Conditions"
+description: "All built-in conditions for asserting element state"
+---
+
+Conditions are predicates you pass to `shouldBe`, `shouldHave`, `should`, and their negations to assert or wait for element state. Selenide retries the check until it passes or the timeout is reached.
+
+```java
+$("input").shouldBe(visible);
+$("h1").shouldHave(text("Hello"));
+$(".modal").shouldNot(exist);
+```
+
+## How conditions work
+
+Every assertion method accepts one or more `WebElementCondition` values:
+
+| Method | Typical use |
+|---|---|
+| `shouldBe(condition)` | State checks — `visible`, `enabled`, `checked` |
+| `shouldHave(condition)` | Content checks — `text(...)`, `value(...)`, `attribute(...)` |
+| `should(condition)` | General-purpose, e.g. `should(exist)` |
+| `shouldNotBe(condition)` | Negative state check |
+| `shouldNotHave(condition)` | Negative content check |
+| `shouldNot(condition)` | General-purpose negation |
+
+All methods wait up to the configured timeout before failing.
+
+---
+
+## Visibility
+
+<AccordionGroup>
+  <Accordion title="visible">
+    Checks that the element is present in the DOM and visible on screen.
+
+    ```java
+    $("input").shouldBe(visible);
+    ```
+  </Accordion>
+  <Accordion title="exist">
+    Checks that the element is present in the DOM. It may be hidden.
+
+    ```java
+    $("input").should(exist);
+    ```
+  </Accordion>
+  <Accordion title="hidden">
+    Checks that the element is not visible or does not exist. Opposite of `appear`.
+
+    ```java
+    $("input").shouldBe(hidden);
+    ```
+  </Accordion>
+  <Accordion title="appear / disappear">
+    Synonyms for `visible` and `hidden` for more readable code.
+
+    ```java
+    $("#logoutLink").should(appear);
+    $("#loginLink").should(disappear);
+    ```
+  </Accordion>
+  <Accordion title="interactable">
+    Checks that the element is either visible or has `opacity: 0`. Transparent elements are invisible but still accept user input in all major browsers.
+
+    ```java
+    $("input[type=file]").shouldBe(interactable);
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Text
+
+All text conditions ignore differences in whitespace (multiple spaces, tabs, non-breaking spaces, newlines) unless noted otherwise.
+
+<AccordionGroup>
+  <Accordion title="text(String text)">
+    Asserts that the element contains the given text as a **case-insensitive substring** (including child elements).
+
+    ```java
+    public static WebElementCondition text(String text)
+    ```
+
+    ```java
+    $("h1").shouldHave(text("Hello John"));
+    ```
+
+    <Note>Empty strings are not allowed — every element contains the empty string.</Note>
+  </Accordion>
+  <Accordion title="exactText(String text)">
+    Asserts that the element's full text **equals** the given string (case-insensitive).
+
+    ```java
+    public static WebElementCondition exactText(String text)
+    ```
+
+    ```java
+    $("h1").shouldHave(exactText("Hello"));
+    ```
+  </Accordion>
+  <Accordion title="partialText(String expectedText)">
+    Asserts that the element's text contains the given substring (case-insensitive).
+
+    ```java
+    public static WebElementCondition partialText(String expectedText)
+    ```
+
+    ```java
+    $("h1").shouldHave(partialText("ello Joh"));
+    ```
+  </Accordion>
+  <Accordion title="ownText(String text)">
+    Asserts that the element contains the given text **without** looking at child elements (case-insensitive, substring match).
+
+    ```java
+    public static WebElementCondition ownText(String text)
+    ```
+
+    ```java
+    $("h1").shouldHave(ownText("Hello"));
+    ```
+  </Accordion>
+  <Accordion title="exactOwnText(String text)">
+    Asserts that the element's own text (excluding children) **equals** the given string (case-insensitive).
+
+    ```java
+    public static WebElementCondition exactOwnText(String text)
+    ```
+
+    ```java
+    $("h1").shouldHave(exactOwnText("Hello"));
+    ```
+  </Accordion>
+  <Accordion title="innerText(String text)">
+    Checks the element's `innerText`. Useful for checking hidden elements.
+
+    ```java
+    public static WebElementCondition innerText(String text)
+    ```
+
+    ```java
+    $("h1").shouldHave(innerText("Hello"));
+    ```
+  </Accordion>
+  <Accordion title="matchText(String regex)">
+    Asserts that the element's text matches the given regular expression.
+
+    ```java
+    public static WebElementCondition matchText(String regex)
+    ```
+
+    ```java
+    $("h1").should(matchText("Hello\\s*John"));
+    ```
+  </Accordion>
+  <Accordion title="selectedText(String expectedText)">
+    Checks that exactly the given text is currently selected (highlighted) in the element. Case-sensitive.
+
+    ```java
+    public static WebElementCondition selectedText(String expectedText)
+    ```
+
+    ```java
+    $("input").shouldHave(selectedText("Text"));
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Case-sensitive text variants
+
+| Method | Description |
+|---|---|
+| `textCaseSensitive(String text)` | Substring match, case-sensitive |
+| `exactTextCaseSensitive(String text)` | Exact match, case-sensitive |
+| `partialTextCaseSensitive(String text)` | Substring match, case-sensitive |
+| `ownTextCaseSensitive(String text)` | Own text substring, case-sensitive |
+| `exactOwnTextCaseSensitive(String text)` | Own text exact match, case-sensitive |
+
+### One-of text variants
+
+Assert that the element's text matches **at least one** of the given strings:
+
+| Method | Match type | Case |
+|---|---|---|
+| `oneOfTexts(String... texts)` | Substring | Insensitive |
+| `oneOfTextsCaseSensitive(String... texts)` | Substring | Sensitive |
+| `oneOfExactTexts(String... texts)` | Exact | Insensitive |
+| `oneOfExactTextsCaseSensitive(String... texts)` | Exact | Sensitive |
+
+```java
+$("span").shouldHave(oneOfTexts("success", "completed", "done"));
+```
+
+---
+
+## Value
+
+<AccordionGroup>
+  <Accordion title="value(String expectedValue)">
+    Asserts that the `value` attribute **contains** the given string. Ignores whitespace differences.
+
+    ```java
+    public static WebElementCondition value(String expectedValue)
+    ```
+
+    ```java
+    $("input").shouldHave(value("John"));
+    ```
+  </Accordion>
+  <Accordion title="exactValue(String value)">
+    Asserts that the `value` attribute **equals** the given string exactly.
+
+    ```java
+    public static WebElementCondition exactValue(String value)
+    ```
+
+    ```java
+    $("#input").shouldHave(exactValue("John"));
+    ```
+  </Accordion>
+  <Accordion title="partialValue(String expectedValue)">
+    Asserts that the `value` attribute contains the given string as a substring. Ignores whitespace differences.
+
+    ```java
+    public static WebElementCondition partialValue(String expectedValue)
+    ```
+
+    ```java
+    $("input").shouldHave(partialValue("12345"));
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Attributes
+
+<AccordionGroup>
+  <Accordion title="attribute(String attributeName)">
+    Checks that the element has the given attribute (with any value).
+
+    ```java
+    public static WebElementCondition attribute(String attributeName)
+    ```
+
+    ```java
+    $("#mydiv").shouldHave(attribute("fileId"));
+    ```
+  </Accordion>
+  <Accordion title="attribute(String attributeName, String expectedAttributeValue)">
+    Checks that the element has the given attribute with the given value.
+
+    ```java
+    public static WebElementCondition attribute(String attributeName, String expectedAttributeValue)
+    ```
+
+    ```java
+    $("#mydiv").shouldHave(attribute("fileId", "12345"));
+    ```
+  </Accordion>
+  <Accordion title="attributeMatching(String attributeName, String attributeRegex)">
+    Asserts that the attribute value matches the given regular expression.
+
+    ```java
+    public static WebElementCondition attributeMatching(String attributeName, String attributeRegex)
+    ```
+
+    ```java
+    $("h1").shouldHave(attributeMatching("fileId", ".*12345.*"));
+    ```
+  </Accordion>
+  <Accordion title="domAttribute(String domAttributeName)">
+    Checks that the element has the given DOM attribute (with any value). Available since 7.4.0.
+
+    ```java
+    public static WebElementCondition domAttribute(String domAttributeName)
+    ```
+
+    ```java
+    $("#mydiv").shouldHave(domAttribute("hidden"));
+    ```
+  </Accordion>
+  <Accordion title="domAttribute(String domAttributeName, String expectedDomAttributeValue)">
+    Checks that the DOM attribute has the given value. Available since 7.4.0.
+
+    ```java
+    public static WebElementCondition domAttribute(String domAttributeName, String expectedDomAttributeValue)
+    ```
+
+    ```java
+    $("#mydiv").shouldHave(domAttribute("hidden", "hidden"));
+    ```
+  </Accordion>
+  <Accordion title="domProperty(String domPropertyName)">
+    Checks that the element has the given DOM property (with any value). Available since 7.4.0.
+
+    ```java
+    public static WebElementCondition domProperty(String domPropertyName)
+    ```
+
+    ```java
+    $("#mydiv").shouldHave(domProperty("id"));
+    ```
+  </Accordion>
+  <Accordion title="domProperty(String domPropertyName, String expectedDomPropertyValue)">
+    Checks that the DOM property has the given value. Available since 7.4.0.
+
+    ```java
+    public static WebElementCondition domProperty(String domPropertyName, String expectedDomPropertyValue)
+    ```
+
+    ```java
+    $("#my-div").shouldHave(domProperty("id", "my-div"));
+    ```
+  </Accordion>
+  <Accordion title="href(String href)">
+    Checks the `href` attribute value. Unlike `attribute("href", href)`, this handles relative URLs correctly — Selenium otherwise returns the absolute URL.
+
+    ```java
+    public static WebElementCondition href(String href)
+    ```
+
+    ```java
+    $("#link").shouldHave(href("/one/two/three.pdf"));
+    ```
+  </Accordion>
+  <Accordion title="name(String name)">
+    Asserts the `name` attribute equals the given string.
+
+    ```java
+    public static WebElementCondition name(String name)
+    ```
+
+    ```java
+    $("#input").shouldHave(name("username"));
+    ```
+  </Accordion>
+  <Accordion title="type(String type)">
+    Asserts the `type` attribute equals the given string.
+
+    ```java
+    public static WebElementCondition type(String type)
+    ```
+
+    ```java
+    $("#input").shouldHave(type("checkbox"));
+    ```
+  </Accordion>
+  <Accordion title="id(String id)">
+    Asserts the `id` attribute equals the given string.
+
+    ```java
+    public static WebElementCondition id(String id)
+    ```
+
+    ```java
+    $("#input").shouldHave(id("myForm"));
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## CSS
+
+<AccordionGroup>
+  <Accordion title="cssClass(String cssClass)">
+    Asserts that the element has the given CSS class. The element may have other classes as well.
+
+    ```java
+    public static WebElementCondition cssClass(String cssClass)
+    ```
+
+    ```java
+    $("input").shouldHave(cssClass("active"));
+    ```
+  </Accordion>
+  <Accordion title="cssValue(String propertyName, String expectedValue)">
+    Checks that the CSS property (explicit or computed) has the given value.
+
+    ```java
+    public static WebElementCondition cssValue(String propertyName, @Nullable String expectedValue)
+    ```
+
+    ```java
+    $("input").shouldHave(cssValue("font-size", "12px"));
+    $("input").shouldHave(cssValue("display", "block"));
+    ```
+
+    <Note>If the CSS property is missing, `getCssValue` returns an empty string. Assert against `""` in that case.</Note>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## State
+
+| Condition | Description |
+|---|---|
+| `enabled` | Element is not disabled (`WebElement.isEnabled()`) |
+| `disabled` | Element is disabled |
+| `checked` | Checkbox is checked (`WebElement.isSelected()`) |
+| `selected` | Element is selected (dropdowns etc.) |
+| `readonly` | Element has the `readonly` attribute |
+| `editable` | Element is interactable, enabled, and not readonly |
+| `focused` | Browser focus is on this element |
+| `clickable` | Element is both interactable and enabled (since 7.2.0) |
+| `animated` | Element is changing position or size (browser only, since 7.0.7) |
+| `empty` | Input value is empty **and** text is empty |
+
+```java
+$("input").shouldBe(enabled);
+$("button").shouldBe(disabled);
+$("input[type=checkbox]").shouldBe(checked);
+$("input").shouldBe(editable);
+$("input").shouldBe(focused);
+```
+
+---
+
+## Image
+
+```java
+public static final WebElementCondition image
+```
+
+Checks that an `<img>` element has loaded its image successfully.
+
+```java
+$("img.logo").shouldBe(image);
+```
+
+---
+
+## Tag
+
+```java
+public static WebElementCondition tagName(String tagName)
+```
+
+Asserts that the element has the given HTML tag name.
+
+```java
+$(".btn-primary").shouldHave(tagName("button"));
+```
+
+---
+
+## Pseudo-element
+
+```java
+public static WebElementCondition pseudo(String pseudoElementName, String propertyName, String expectedValue)
+public static WebElementCondition pseudo(String pseudoElementName, String expectedValue)
+```
+
+Checks a CSS property (or the `content` property) of a pseudo-element.
+
+```java
+$("input").shouldHave(pseudo(":first-letter", "color", "#ff0000"));
+$("input").shouldHave(pseudo(":before", "Hello"));
+```
+
+---
+
+## Combining conditions
+
+### `and` — all conditions must match
+
+```java
+public static WebElementCondition and(
+    String name,
+    WebElementCondition condition1,
+    WebElementCondition condition2,
+    WebElementCondition... conditions
+)
+```
+
+```java
+$("input").shouldBe(and("active input", visible, enabled));
+```
+
+`allOf` is a synonym:
+
+```java
+$("input").shouldBe(allOf(visible, enabled));
+```
+
+### `or` — any condition must match
+
+```java
+public static WebElementCondition or(
+    String name,
+    WebElementCondition condition1,
+    WebElementCondition condition2,
+    WebElementCondition... conditions
+)
+```
+
+```java
+$("span").shouldBe(or("finished", text("success"), text("done")));
+```
+
+`anyOf` is a synonym:
+
+```java
+$("span").shouldBe(anyOf(text("success"), text("done")));
+```
+
+<Warning>Using `or` in tests is often a sign of poor test design. Consider splitting the assertion into separate tests.</Warning>
+
+### `not` — negate a condition
+
+```java
+public static WebElementCondition not(WebElementCondition condition)
+```
+
+```java
+$("input").should(not(visible));
+// equivalent to:
+$("input").shouldNotBe(visible);
+```
+
+---
+
+## Custom conditions
+
+Use `Condition.match` to create a custom condition backed by any predicate:
+
+```java
+public static WebElementCondition match(String description, Predicate<WebElement> predicate)
+```
+
+```java
+$("input").should(match("empty value attribute", el ->
+    el.getAttribute("value").isEmpty()
+));
+```
+
+The `description` is shown in error messages when the condition fails.
+
+---
+
+## Readability helpers
+
+`be` and `have` are wrappers that add a prefix for more readable assertion chains:
+
+```java
+element.should(be(visible), have(text("abc")));
+```
+
+These do not change the assertion behavior — they only affect the human-readable condition name shown in logs and error messages.

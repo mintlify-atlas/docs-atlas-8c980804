@@ -1,0 +1,227 @@
+---
+title: "Elements"
+description: "Finding and working with individual web elements using SelenideElement"
+---
+
+`SelenideElement` is the core type in Selenide. Every element you locate with `$()` returns a `SelenideElement` — a smart proxy that wraps a Selenium `WebElement` and adds automatic waiting, built-in assertions, and a fluent API.
+
+## Finding a single element
+
+Use the static `$()` method to locate an element. It accepts a CSS selector string, a Selenium `By` locator, or an index.
+
+```java
+import static com.codeborne.selenide.Selenide.$;
+import static com.codeborne.selenide.Selenide.$x;
+import org.openqa.selenium.By;
+
+// CSS selector
+SelenideElement button = $("#submit-btn");
+
+// Any Selenium By locator
+SelenideElement field  = $(By.name("username"));
+SelenideElement label  = $(By.xpath("//label[@for='email']"));
+
+// XPath shorthand
+SelenideElement cell   = $x("//td[text()='Total']");
+```
+
+<Note>
+`$()` never throws immediately. The element is looked up in the browser only when you first interact with it or call an assertion. This is called **lazy evaluation**.
+</Note>
+
+## Lazy proxy — elements are found on demand
+
+A `SelenideElement` is a lazy proxy. Calling `$()` does not touch the browser. The actual DOM lookup happens the moment you interact with the element — click it, read its text, assert a condition.
+
+```java
+SelenideElement menu = $("#nav-menu");   // no browser call yet
+
+menu.click();                            // element looked up here
+menu.shouldBe(visible);                 // looked up again (fresh reference)
+```
+
+This means stale element exceptions are handled automatically: each interaction re-queries the element using its original locator.
+
+## Finding multiple elements
+
+`$$()` returns an `ElementsCollection` — a lazy list of all matching elements.
+
+```java
+import static com.codeborne.selenide.Selenide.$$;
+
+ElementsCollection rows = $$("table tbody tr");
+```
+
+See [Collections](/core/collections) for the full API.
+
+## Chaining: finding children
+
+Once you have a `SelenideElement`, call `find()` or `$()` on it to search within that element's subtree.
+
+```java
+SelenideElement form = $("#login-form");
+
+// Both lines are equivalent
+SelenideElement submit = form.find(".submit-btn");
+SelenideElement submit = form.$(".submit-btn");
+
+// With a By locator
+SelenideElement field = form.$(By.name("password"));
+
+// By index — second input inside the form
+SelenideElement second = form.$("input", 1);
+
+// XPath relative to the parent element
+SelenideElement row = $("table").$x(".//tr[@data-id='42']");
+```
+
+Finding multiple children returns an `ElementsCollection`:
+
+```java
+ElementsCollection cells   = $("tr").findAll("td");
+ElementsCollection options = $("select").$$("option");
+```
+
+## Traversing the DOM
+
+`SelenideElement` provides methods to navigate up and sideways in the DOM tree. All of them return a new lazy `SelenideElement`.
+
+### Parent and ancestors
+
+```java
+// Immediate parent element
+SelenideElement row = $("td").parent();
+
+// Closest ancestor matching a CSS selector or tag name
+SelenideElement form  = $("input").closest("form");
+SelenideElement panel = $("button").ancestor(".card");
+
+// Second ancestor matching the selector (0-indexed)
+SelenideElement outer = $("td").ancestor(".container", 1);
+```
+
+### Siblings
+
+```java
+// First following sibling (index 0 = immediately next)
+SelenideElement next = $("td").sibling(0);
+
+// First preceding sibling
+SelenideElement prev = $("td").preceding(0);
+
+// Last child element
+SelenideElement last = $("ul").lastChild();
+```
+
+<Tip>
+Traversal methods are useful in page objects when you need to locate labels, error messages, or wrapper elements relative to a known anchor.
+</Tip>
+
+## Reading element information
+
+These methods read live data from the browser at the moment they are called.
+
+<Warning>
+Selenide's authors [strongly recommend](https://github.com/selenide/selenide/wiki/do-not-use-getters-in-tests) using assertions (`shouldHave`, `shouldBe`) over getters in test code. Getters bypass Selenide's automatic waiting and can produce flaky tests.
+</Warning>
+
+### Text content
+
+```java
+// Visible text including child elements (trims whitespace)
+String full = $("#message").getText();
+String full = $("#message").text();          // shorthand
+
+// Text of this element only, without children
+String own  = $("#message").getOwnText();
+
+// Raw innerText including hidden elements
+String inner = $("#message").innerText();
+
+// innerHTML of the element
+String html  = $("#message").innerHtml();
+```
+
+| Method | Returns | Includes children | Sees hidden text |
+|---|---|---|---|
+| `getText()` / `text()` | visible text | yes | no |
+| `getOwnText()` | visible text | no | no |
+| `innerText()` | raw innerText | yes | yes |
+| `innerHtml()` | innerHTML string | yes | yes |
+
+### Attributes and CSS
+
+```java
+// Standard getAttribute
+String href  = $("a").getAttribute("href");
+String href  = $("a").attr("href");           // shorthand
+
+// The "value" attribute
+String value = $("input").getValue();
+String value = $("input").val();              // shorthand
+
+// The "name" attribute
+String name  = $("input").name();
+
+// A data-* attribute
+String id    = $("[data-id]").data("id");     // reads data-id
+
+// A CSS property
+String color = $("p").getCssValue("color");
+```
+
+### Pseudo-element content
+
+```java
+// Read a CSS property of a pseudo-element
+String before = $(".icon").pseudo(":before", "content");
+
+// Shorthand for "content" property
+String after  = $(".badge").pseudo(":after");
+```
+
+### Existence and visibility
+
+```java
+// true if the element exists in the DOM (may be invisible)
+boolean present = $("#modal").exists();
+
+// true if the element exists AND is visible
+boolean visible = $("#modal").isDisplayed();
+```
+
+<Note>
+`exists()` and `isDisplayed()` return immediately without waiting. For assertions with automatic retrying, use `shouldBe(visible)` or `should(exist)` instead.
+</Note>
+
+## Quick reference
+
+```java
+// Locate
+SelenideElement el = $("#id");
+SelenideElement el = $(By.name("q"));
+SelenideElement el = $x("//button");
+
+// Children
+el.find(".child");          // first matching child
+el.$(".child", 2);          // third matching child
+el.findAll("li");           // all matching children
+
+// Traverse
+el.parent();
+el.closest("form");
+el.ancestor(".panel", 1);
+el.sibling(0);
+el.preceding(0);
+el.lastChild();
+
+// Read
+el.getText();
+el.getOwnText();
+el.attr("href");
+el.getValue();
+el.data("testid");
+el.getCssValue("color");
+el.exists();
+el.isDisplayed();
+```

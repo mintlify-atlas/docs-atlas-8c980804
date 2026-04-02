@@ -1,0 +1,105 @@
+---
+title: "Introduction"
+description: "What is Selenide and why should you use it?"
+---
+
+Selenide is a Java framework for writing UI tests that are easy to read and easy to maintain. It wraps [Selenium WebDriver](https://www.selenium.dev/documentation/webdriver/) with a concise fluent API, built-in automatic waiting for dynamic content, and natural-language assertions — so you focus on test logic, not WebDriver boilerplate.
+
+## What is Selenide?
+
+Selenide is built on top of Selenium WebDriver 4.0+ and adds a layer of productivity-focused abstractions. Instead of managing browser lifecycle, waiting for elements, and handling stale references yourself, Selenide handles them for you.
+
+It was created to solve the most common pain points in Selenium-based test suites:
+
+- Verbose, repetitive setup code
+- Fragile tests that break on dynamic content
+- Hard-to-read assertions
+- Missing screenshots on failure
+
+## Why Selenide?
+
+<CardGroup cols={2}>
+  <Card title="Automatic waiting" icon="clock">
+    No `Thread.sleep()`. Selenide polls the DOM until a condition is met or the configurable timeout expires — handling Ajax and dynamic content gracefully.
+  </Card>
+  <Card title="Readable assertions" icon="check">
+    `shouldBe(visible)`, `shouldHave(text("Hello"))` — assertions read like plain English and produce clear failure messages with the actual vs. expected values.
+  </Card>
+  <Card title="Built-in screenshots" icon="camera">
+    On every test failure, Selenide automatically captures a screenshot and saves the page source so you can diagnose failures without re-running tests.
+  </Card>
+  <Card title="Concise API" icon="code">
+    `$()` selects a single element, `$$()` selects a collection. One line replaces five lines of Selenium boilerplate.
+  </Card>
+</CardGroup>
+
+## Selenide vs. Selenium
+
+The same login test written in plain Selenium WebDriver vs. Selenide:
+
+<CodeGroup>
+
+```java Selenium WebDriver
+WebDriver driver = new ChromeDriver();
+driver.get("https://example.com/login");
+
+WebElement username = driver.findElement(By.name("user.name"));
+username.clear();
+username.sendKeys("johny");
+
+driver.findElement(By.id("submit")).click();
+
+WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(4));
+WebElement greeting = wait.until(
+    ExpectedConditions.visibilityOfElementLocated(By.id("username"))
+);
+assertEquals("Hello, Johny!", greeting.getText());
+
+driver.quit();
+```
+
+```java Selenide
+open("https://example.com/login");
+$(By.name("user.name")).setValue("johny");
+$("#submit").click();
+$("#username").shouldHave(text("Hello, Johny!"));
+```
+
+</CodeGroup>
+
+Selenide eliminates driver lifecycle management, explicit waits, and manual assertions — without sacrificing control when you need it.
+
+## Supported browsers
+
+Selenide uses Selenium WebDriver under the hood, so it supports any browser that Selenium supports:
+
+| Browser | Driver |
+|---------|--------|
+| Chrome / Chromium | ChromeDriver (bundled via Selenium Manager) |
+| Firefox | GeckoDriver (bundled via Selenium Manager) |
+| Edge | EdgeDriver (bundled via Selenium Manager) |
+| Safari | SafariDriver (built into macOS) |
+| Any remote browser | Selenium Grid / Selenoid / BrowserStack |
+
+<Note>
+Since Selenium 4, driver binaries are managed automatically by Selenium Manager. You do not need to download or configure ChromeDriver, GeckoDriver, or EdgeDriver manually.
+</Note>
+
+## Beyond the browser
+
+Selenide is extensible through official modules:
+
+- **[Appium module](/modules/appium)** — test Android and iOS apps with the same Selenide API
+- **[Selenoid module](/modules/selenoid)** — run tests in Selenoid Docker containers
+- **[Selenium Grid module](/modules/grid)** — distribute tests across a Grid cluster
+
+## Get started
+
+<CardGroup cols={2}>
+  <Card title="Quick start" icon="rocket" href="/quickstart">
+    Write your first Selenide test in minutes
+  </Card>
+  <Card title="Installation" icon="box" href="/installation">
+    Add Selenide to Maven, Gradle, or any JVM project
+  </Card>
+</CardGroup>

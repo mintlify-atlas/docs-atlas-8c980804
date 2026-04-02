@@ -1,0 +1,351 @@
+---
+title: "Collections"
+description: "Working with lists of elements using ElementsCollection"
+---
+
+`$$("css")` returns an `ElementsCollection` — a lazy, auto-waiting list of `SelenideElement` instances. Like single elements, collections retry assertions until they pass or the timeout is reached.
+
+```java
+$$(".item").shouldHave(size(3));
+$$("li").shouldHave(texts("First", "Second", "Third"));
+$$(".error").shouldBe(empty);
+```
+
+---
+
+## Asserting on a collection
+
+Use `shouldHave`, `shouldBe`, or `should` to assert collection state:
+
+| Method | Typical use |
+|---|---|
+| `shouldHave(condition)` | Content assertions — `texts(...)`, `size(n)` |
+| `shouldBe(condition)` | State assertions — `empty` |
+| `should(condition)` | General-purpose |
+| `shouldHave(condition, Duration)` | Assert within a custom timeout |
+
+```java
+$$(".row").shouldHave(size(5));
+$$(".error").shouldBe(empty);
+$$("li").should(containExactTextsCaseSensitive("Alice", "Bob"));
+```
+
+---
+
+## Collection conditions
+
+### Size
+
+| Condition | Description |
+|---|---|
+| `empty` | Collection has zero elements |
+| `size(int expectedSize)` | Collection has exactly this many elements |
+| `sizeGreaterThan(int expectedSize)` | Collection has more than this many elements |
+| `sizeGreaterThanOrEqual(int expectedSize)` | Collection has at least this many elements |
+| `sizeLessThan(int expectedSize)` | Collection has fewer than this many elements |
+| `sizeLessThanOrEqual(int size)` | Collection has at most this many elements |
+| `sizeNotEqual(int expectedSize)` | Collection does not have exactly this many elements |
+
+```java
+$$(".item").shouldHave(size(3));
+$$(".result").shouldHave(sizeGreaterThan(0));
+$$(".error").shouldBe(empty);
+```
+
+### Text conditions
+
+<AccordionGroup>
+  <Accordion title="texts(String... expectedTexts)">
+    Checks that each element in the collection has the corresponding text. The behavior depends on `Configuration.textCheck`:
+    - `FULL_TEXT` — each element's text must equal the expected text
+    - `PARTIAL_TEXT` (default) — each element's text must contain the expected text
+
+    Ignores multiple whitespaces. Case-insensitive.
+
+    ```java
+    public static WebElementsCondition texts(String... expectedTexts)
+    public static WebElementsCondition texts(List<String> expectedTexts)
+    ```
+
+    ```java
+    $$("li").shouldHave(texts("First item", "Second item", "Third item"));
+    ```
+  </Accordion>
+  <Accordion title="exactTexts(String... expectedTexts)">
+    Checks that each element's text **equals** the corresponding expected text (case-insensitive). Ignores multiple whitespaces.
+
+    ```java
+    public static WebElementsCondition exactTexts(String... expectedTexts)
+    public static WebElementsCondition exactTexts(List<String> expectedTexts)
+    ```
+
+    ```java
+    $$("li").shouldHave(exactTexts("Alice", "Bob", "Carol"));
+    ```
+  </Accordion>
+  <Accordion title="textsInAnyOrder(String... expectedTexts)">
+    Checks that the collection contains the expected texts in any order (case-insensitive). Ignores multiple whitespaces.
+
+    ```java
+    public static WebElementsCondition textsInAnyOrder(String... expectedTexts)
+    public static WebElementsCondition textsInAnyOrder(List<String> expectedTexts)
+    ```
+
+    ```java
+    $$("li").shouldHave(textsInAnyOrder("Carol", "Alice", "Bob"));
+    ```
+  </Accordion>
+  <Accordion title="exactTextsCaseSensitive(String... expectedTexts)">
+    Checks that each element's text equals the corresponding expected text — **case-sensitive**. Ignores multiple whitespaces.
+
+    ```java
+    public static WebElementsCondition exactTextsCaseSensitive(String... expectedTexts)
+    public static WebElementsCondition exactTextsCaseSensitive(List<String> expectedTexts)
+    ```
+
+    ```java
+    $$("li").shouldHave(exactTextsCaseSensitive("Alice", "Bob"));
+    ```
+  </Accordion>
+  <Accordion title="exactTextsCaseSensitiveInAnyOrder(String... expectedTexts)">
+    Checks that the collection has the expected texts in any order — **case-sensitive**.
+
+    ```java
+    public static WebElementsCondition exactTextsCaseSensitiveInAnyOrder(String... expectedTexts)
+    public static WebElementsCondition exactTextsCaseSensitiveInAnyOrder(List<String> expectedTexts)
+    ```
+
+    ```java
+    $$("li").shouldHave(exactTextsCaseSensitiveInAnyOrder("Bob", "Alice"));
+    ```
+  </Accordion>
+  <Accordion title="itemWithText(String expectedText)">
+    Checks that **at least one** element in the collection has exactly the given text.
+
+    ```java
+    public static WebElementsCondition itemWithText(String expectedText)
+    ```
+
+    ```java
+    $$("option").shouldHave(itemWithText("Canada"));
+    ```
+  </Accordion>
+  <Accordion title="containExactTextsCaseSensitive(String... expectedTexts)">
+    Checks that the collection **contains** all of the given texts (case-sensitive, exact match). The collection may have additional elements.
+
+    ```java
+    public static WebElementsCondition containExactTextsCaseSensitive(String... expectedTexts)
+    public static WebElementsCondition containExactTextsCaseSensitive(List<String> expectedTexts)
+    ```
+
+    ```java
+    // [Tom, John, Dick, Harry] — passes
+    $$("li").should(containExactTextsCaseSensitive("Tom", "Dick", "Harry"));
+
+    // [Tom, Dick, hArRy] — fails ("Harry" has wrong case)
+    $$("li").should(containExactTextsCaseSensitive("Tom", "Dick", "Harry"));
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Attribute condition
+
+```java
+public static WebElementsCondition attributes(String attribute, String... expectedValues)
+public static WebElementsCondition attributes(String attribute, List<String> expectedValues)
+```
+
+Checks that each element in the collection has the expected value for the given attribute (exact match, ignores whitespace).
+
+```java
+$$("a").shouldHave(attributes("href", "/home", "/about", "/contact"));
+```
+
+### Predicate conditions
+
+| Condition | Description |
+|---|---|
+| `anyMatch(String description, Predicate<WebElement> predicate)` | At least one element matches the predicate |
+| `allMatch(String description, Predicate<WebElement> predicate)` | All elements match the predicate |
+| `noneMatch(String description, Predicate<WebElement> predicate)` | No elements match the predicate |
+
+```java
+$$("input").shouldHave(
+    allMatch("enabled inputs", el -> el.isEnabled())
+);
+
+$$(".item").shouldHave(
+    anyMatch("has data-id", el -> el.getAttribute("data-id") != null)
+);
+
+$$(".error").shouldHave(
+    noneMatch("no hidden errors", el -> !el.isDisplayed())
+);
+```
+
+---
+
+## Accessing elements
+
+<Note>
+  These methods use lazy evaluation — they do not trigger a browser request until the element is actually used.
+</Note>
+
+| Method | Returns | Description |
+|---|---|---|
+| `get(int index)` | `SelenideElement` | Element at the given 0-based index |
+| `first()` | `SelenideElement` | First element (same as `get(0)`) |
+| `last()` | `SelenideElement` | Last element |
+| `first(int n)` | `ElementsCollection` | First `n` elements |
+| `last(int n)` | `ElementsCollection` | Last `n` elements |
+
+```java
+$$(".row").first().shouldBe(visible);
+$$(".row").last().shouldHave(text("Total"));
+$$(".row").get(2).click();
+
+$$(".row").first(3).shouldHave(size(3));
+$$(".row").last(2).shouldHave(texts("Subtotal", "Total"));
+```
+
+<Tip>
+  Prefer `$(".css")` over `$$(".css").first()` — the single-element selector is faster.
+</Tip>
+
+---
+
+## Filtering
+
+All filter methods use lazy evaluation and return a new `ElementsCollection`.
+
+<AccordionGroup>
+  <Accordion title="filter(condition) / filterBy(condition)">
+    Returns a new collection containing only the elements that **match** the condition.
+
+    ```java
+    public SELF filter(WebElementCondition condition)
+    public SELF filterBy(WebElementCondition condition)
+    ```
+
+    `filterBy` is an alias for `filter`.
+
+    ```java
+    $$("input").filter(visible).shouldHave(size(2));
+    $$("li").filterBy(text("active")).first().click();
+    ```
+  </Accordion>
+  <Accordion title="exclude(condition) / excludeWith(condition)">
+    Returns a new collection containing only the elements that do **not** match the condition.
+
+    ```java
+    public SELF exclude(WebElementCondition condition)
+    public SELF excludeWith(WebElementCondition condition)
+    ```
+
+    `excludeWith` is an alias for `exclude`.
+
+    ```java
+    $$(".item").exclude(cssClass("disabled")).shouldHave(sizeGreaterThan(0));
+    ```
+  </Accordion>
+  <Accordion title="find(condition) / findBy(condition)">
+    Returns the **first** element that matches the condition.
+
+    ```java
+    public SelenideElement find(WebElementCondition condition)
+    public SelenideElement findBy(WebElementCondition condition)
+    ```
+
+    `findBy` is an alias for `find`.
+
+    ```java
+    $$("option").find(text("Canada")).click();
+    $$("tr").findBy(text("Alice")).shouldHave(cssClass("active"));
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Getting text and attribute values
+
+<Warning>
+  Prefer asserting with `shouldHave(texts(...))` or `shouldHave(attributes(...))` over reading values in tests. Getters do not retry and can cause flaky tests.
+</Warning>
+
+```java
+// Returns List<String> of text content from each element
+List<String> labels = $$("label").texts();
+
+// Returns List<String> of attribute values from each element
+List<String> hrefs = $$("a").attributes("href");
+```
+
+---
+
+## Snapshot vs live collections
+
+By default, `ElementsCollection` is **live** — every access re-queries the DOM. If you know the collection will not change during a test, use `snapshot()` to freeze it:
+
+```java
+// Live collection — re-queries DOM on each access
+ElementsCollection rows = $$("tr");
+
+// Snapshot — fetched once, no further DOM queries
+ElementsCollection frozenRows = $$("tr").snapshot();
+```
+
+<Tip>
+  Use `snapshot()` to speed up tests that repeatedly access the same stable collection.
+</Tip>
+
+For iteration, you can choose explicitly:
+
+```java
+// Does not re-query during iteration (faster, may cause StaleElementReferenceException)
+for (SelenideElement el : $$(".item").asFixedIterable()) {
+    System.out.println(el.getText());
+}
+
+// Re-queries each element during iteration (slower, safer)
+for (SelenideElement el : $$(".item").asDynamicIterable()) {
+    System.out.println(el.getText());
+}
+```
+
+<Note>
+  Iterating a collection in tests is generally not recommended. Prefer writing a `CollectionCondition` that verifies the whole collection at once.
+</Note>
+
+---
+
+## Aliases and naming
+
+Give a collection a human-readable alias for clearer error messages:
+
+```java
+$$(".row").as("table rows").shouldHave(size(5));
+```
+
+---
+
+## Complete example
+
+```java
+import static com.codeborne.selenide.CollectionCondition.*;
+import static com.codeborne.selenide.Condition.*;
+import static com.codeborne.selenide.Selenide.$$;
+
+// Assert all visible items have expected labels
+$$(".menu-item")
+    .filter(visible)
+    .shouldHave(exactTextsCaseSensitive("Home", "About", "Contact"));
+
+// Find and click a specific item
+$$("option").findBy(text("Canada")).click();
+
+// Verify at least one row matches a predicate
+$$("tr").shouldHave(
+    anyMatch("row with class 'active'", el -> el.getAttribute("class").contains("active"))
+);
+```

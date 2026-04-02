@@ -1,0 +1,224 @@
+---
+title: "JUnit 4"
+description: "Using Selenide with JUnit 4"
+---
+
+JUnit 4 support is included in the separate `selenide-junit4` module. If you are starting a new project, prefer JUnit 5 — it has a richer extension model and is more actively developed. Use this module when you are working with an existing JUnit 4 test suite.
+
+## Add the dependency
+
+<CodeGroup>
+
+```xml Maven (pom.xml)
+<dependency>
+  <groupId>com.codeborne</groupId>
+  <artifactId>selenide-junit4</artifactId>
+  <version>7.15.1</version>
+  <scope>test</scope>
+</dependency>
+```
+
+```groovy Gradle (build.gradle)
+testImplementation 'com.codeborne:selenide-junit4:7.15.1'
+```
+
+</CodeGroup>
+
+<Note>
+  `selenide-junit4` pulls in `junit:junit:4.13.2` as a transitive dependency, so you do not need to declare JUnit 4 separately.
+</Note>
+
+## Rules
+
+JUnit 4 uses `@Rule` and `@ClassRule` to plug in test infrastructure. Selenide provides several rules in the `com.codeborne.selenide.junit` package.
+
+### ScreenShooter
+
+Takes a screenshot and saves the page source when a test fails. Declare it as a `@Rule` on each test class:
+
+```java
+@Rule
+public ScreenShooter makeScreenshotOnFailure = ScreenShooter.failedTests();
+```
+
+To also capture passing tests:
+
+```java
+@Rule
+public ScreenShooter makeScreenshotOnEveryTest =
+    ScreenShooter.failedTests().succeededTests();
+```
+
+To write screenshots to a specific folder:
+
+```java
+@Rule
+public ScreenShooter makeScreenshotOnFailure =
+    ScreenShooter.failedTests().to("build/reports/screenshots");
+```
+
+<Tip>
+  `ScreenShooter` only captures screenshots for the static WebDriver managed by Selenide. It does not capture screenshots for a `SelenideDriver` instance you create manually.
+</Tip>
+
+### BrowserStrategy
+
+Closes the browser after the rule's scope ends. Use `@Rule` to close after each test, or `@ClassRule` to close once after all tests in the class:
+
+<CodeGroup>
+
+```java Per test
+public class MyTest {
+  @Rule
+  public BrowserStrategy browser = new BrowserStrategy();
+}
+```
+
+```java Per class
+public class MyTest {
+  @ClassRule
+  public static BrowserStrategy browser = new BrowserStrategy();
+}
+```
+
+</CodeGroup>
+
+### TextReport
+
+Writes a human-readable log of Selenide commands to the console after each test. Useful for debugging failures in CI:
+
+```java
+@Rule
+public TextReport report = new TextReport();
+```
+
+Log only on failure:
+
+```java
+@Rule
+public TextReport report = new TextReport()
+    .onFailedTest(true)
+    .onSucceededTest(false);
+```
+
+### SoftAsserts
+
+Collects all failed `should*` assertions and throws a combined error after the test finishes. Requires `Configuration.assertionMode = SOFT`:
+
+```java
+@Rule
+public SoftAsserts softAsserts = new SoftAsserts();
+
+@Before
+public void setup() {
+  Configuration.assertionMode = AssertionMode.SOFT;
+}
+```
+
+To disable full stack traces in the combined error:
+
+```java
+@Rule
+public SoftAsserts softAsserts = new SoftAsserts(false);
+```
+
+## Complete example
+
+```java
+import com.codeborne.selenide.Configuration;
+import com.codeborne.selenide.junit.BrowserStrategy;
+import com.codeborne.selenide.junit.ScreenShooter;
+import com.codeborne.selenide.junit.TextReport;
+import org.junit.Before;
+import org.junit.ClassRule;
+import org.junit.Rule;
+import org.junit.Test;
+
+import static com.codeborne.selenide.Condition.text;
+import static com.codeborne.selenide.Condition.visible;
+import static com.codeborne.selenide.Selenide.$;
+import static com.codeborne.selenide.Selenide.open;
+
+public class LoginTest {
+
+  @ClassRule
+  public static BrowserStrategy browser = new BrowserStrategy();
+
+  @Rule
+  public ScreenShooter screenshots = ScreenShooter.failedTests();
+
+  @Rule
+  public TextReport report = new TextReport();
+
+  @Before
+  public void setup() {
+    Configuration.baseUrl = "https://example.com";
+  }
+
+  @Test
+  public void successfulLogin() {
+    open("/login");
+    $("#username").setValue("alice");
+    $("#password").setValue("secret");
+    $("button[type=submit]").click();
+    $(".welcome").shouldHave(text("Welcome, Alice"));
+  }
+
+  @Test
+  public void loginPageIsVisible() {
+    open("/login");
+    $("h1").shouldBe(visible).shouldHave(text("Sign in"));
+  }
+}
+```
+
+## Migrating to JUnit 5
+
+JUnit 5 offers a cleaner extension model and is the recommended choice for new projects. The Selenide API itself (`$`, `open`, `shouldHave`, etc.) does not change during migration — only the test infrastructure setup differs.
+
+<Steps>
+  <Step title="Replace the dependency">
+    Remove `selenide-junit4` and add the main `selenide` artifact, which includes JUnit 5 extensions.
+
+    <CodeGroup>
+
+    ```xml Maven (pom.xml)
+    <dependency>
+      <groupId>com.codeborne</groupId>
+      <artifactId>selenide</artifactId>
+      <version>7.15.1</version>
+      <scope>test</scope>
+    </dependency>
+    ```
+
+    ```groovy Gradle (build.gradle)
+    testImplementation 'com.codeborne:selenide:7.15.1'
+    ```
+
+    </CodeGroup>
+  </Step>
+  <Step title="Replace rules with extensions">
+    Swap JUnit 4 `@Rule` fields for JUnit 5 `@ExtendWith` annotations:
+
+    | JUnit 4 | JUnit 5 |
+    |---|---|
+    | `@Rule ScreenShooter` | `@ExtendWith(ScreenShooterExtension.class)` |
+    | `@Rule BrowserStrategy` | `@ExtendWith(BrowserStrategyExtension.class)` |
+    | `@Rule TextReport` | `@ExtendWith(TextReportExtension.class)` |
+    | `@Rule SoftAsserts` | `@ExtendWith(SoftAssertsExtension.class)` |
+  </Step>
+  <Step title="Update annotations">
+    Replace JUnit 4 annotations with their JUnit 5 equivalents:
+
+    | JUnit 4 | JUnit 5 |
+    |---|---|
+    | `@Test` (org.junit) | `@Test` (org.junit.jupiter.api) |
+    | `@Before` | `@BeforeEach` |
+    | `@After` | `@AfterEach` |
+    | `@BeforeClass` | `@BeforeAll` |
+    | `@AfterClass` | `@AfterAll` |
+    | `@Ignore` | `@Disabled` |
+  </Step>
+</Steps>
+
+See the [JUnit 5 page](/modules/junit5) for full details on the available extensions.

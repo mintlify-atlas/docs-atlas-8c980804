@@ -1,0 +1,207 @@
+---
+title: "JUnit 5"
+description: "Using Selenide with JUnit 5"
+---
+
+JUnit 5 is the primary supported test runner for Selenide. The `selenide` dependency includes JUnit 5 extensions out of the box — no additional module is required.
+
+## Add the dependency
+
+<CodeGroup>
+
+```xml Maven (pom.xml)
+<dependency>
+  <groupId>com.codeborne</groupId>
+  <artifactId>selenide</artifactId>
+  <version>7.15.1</version>
+  <scope>test</scope>
+</dependency>
+```
+
+```groovy Gradle (build.gradle)
+testImplementation 'com.codeborne:selenide:7.15.1'
+```
+
+</CodeGroup>
+
+<Note>
+  JUnit 5 extensions are bundled in the main `selenide` artifact. You do not need a separate module.
+</Note>
+
+## Extensions
+
+Selenide ships several JUnit 5 extensions in the `com.codeborne.selenide.junit5` package. Register them on your test class with `@ExtendWith` or `@RegisterExtension`.
+
+### ScreenShooterExtension
+
+Takes a screenshot and saves the page source automatically when a test fails. By default it only captures failed tests; pass `true` to the constructor to also capture passing tests.
+
+```java
+@ExtendWith(ScreenShooterExtension.class)
+public class MyTest {
+  // screenshot on failure only
+}
+```
+
+To capture every test result and control the output folder:
+
+```java
+public class MyTest {
+  @RegisterExtension
+  static ScreenShooterExtension screenshots =
+      new ScreenShooterExtension(true).to("build/reports/screenshots");
+}
+```
+
+<Tip>
+  `ScreenShooterExtension` only captures screenshots for the static WebDriver managed by Selenide. It does not capture screenshots for a `SelenideDriver` instance you create manually.
+</Tip>
+
+### BrowserStrategyExtension
+
+Closes the browser after **all** tests in the class have run. Use this when you want a single browser session shared across all tests in a class.
+
+```java
+@ExtendWith(BrowserStrategyExtension.class)
+public class MyTest {
+  // one browser session for all tests
+}
+```
+
+### BrowserPerTestStrategyExtension
+
+Closes the browser after **each** individual test. Use this when tests must not share browser state.
+
+```java
+@ExtendWith(BrowserPerTestStrategyExtension.class)
+public class MyTest {
+  // fresh browser for every test
+}
+```
+
+### TextReportExtension
+
+Writes a human-readable log of Selenide commands to the console after each test. Useful for debugging failures in CI without opening a video or screenshot.
+
+By default it logs both passed and failed tests. You can configure it selectively:
+
+```java
+public class MyTest {
+  @RegisterExtension
+  static TextReportExtension report = new TextReportExtension()
+      .onFailedTest(true)
+      .onSucceededTest(false); // only log on failure
+}
+```
+
+### SoftAssertsExtension
+
+Collects all failed `should*` assertions and throws a single combined error after the test finishes, instead of stopping at the first failure. Add it to your class and set `Configuration.assertionMode = SOFT`:
+
+```java
+@ExtendWith(SoftAssertsExtension.class)
+public class MyTest {
+
+  @BeforeAll
+  static void setup() {
+    Configuration.assertionMode = AssertionMode.SOFT;
+  }
+
+  @Test
+  void checkMultipleConditions() {
+    open("/dashboard");
+    $("h1").shouldHave(text("Dashboard"));
+    $(".user-name").shouldHave(text("Alice"));
+    $(".notifications").shouldBe(visible);
+    // all three assertions run; failures are reported together
+  }
+}
+```
+
+To disable full stack traces in the combined error:
+
+```java
+@RegisterExtension
+static SoftAssertsExtension softAsserts = new SoftAssertsExtension(false);
+```
+
+## Browser lifecycle
+
+Selenide opens the browser lazily on the first call to `open()`. You do not need to create a `WebDriver` instance yourself.
+
+The lifecycle depends on which extension you register:
+
+| Extension | Browser closes |
+|---|---|
+| `BrowserStrategyExtension` | After all tests in the class (`@AfterAll`) |
+| `BrowserPerTestStrategyExtension` | After each test (`@AfterEach`) |
+| Neither | Browser remains open until `Selenide.closeWebDriver()` is called |
+
+<Note>
+  If you register neither extension, the browser stays open across test classes in the same JVM process. This is intentional for performance, but can cause test pollution. Add `BrowserStrategyExtension` to each class or call `Selenide.closeWebDriver()` in an `@AfterAll` method.
+</Note>
+
+## Parallel test execution
+
+JUnit 5 supports parallel test execution via `junit-platform.properties`. Selenide manages one browser per thread, so parallel tests are safe as long as each thread uses its own `open()` call.
+
+Enable parallel execution:
+
+```properties junit-platform.properties
+junit.jupiter.execution.parallel.enabled=true
+junit.jupiter.execution.parallel.mode.default=concurrent
+```
+
+<Warning>
+  Do not share `SelenideElement` references between test methods when running in parallel. Elements are bound to the thread-local WebDriver. Cross-thread access causes unpredictable failures.
+</Warning>
+
+## Complete example
+
+```java
+import com.codeborne.selenide.Configuration;
+import com.codeborne.selenide.junit5.BrowserPerTestStrategyExtension;
+import com.codeborne.selenide.junit5.ScreenShooterExtension;
+import com.codeborne.selenide.junit5.TextReportExtension;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+
+import static com.codeborne.selenide.Condition.text;
+import static com.codeborne.selenide.Condition.visible;
+import static com.codeborne.selenide.Selenide.$;
+import static com.codeborne.selenide.Selenide.open;
+
+@ExtendWith({
+    ScreenShooterExtension.class,
+    BrowserPerTestStrategyExtension.class,
+    TextReportExtension.class
+})
+public class LoginTest {
+
+  @BeforeAll
+  static void setup() {
+    Configuration.baseUrl = "https://example.com";
+    Configuration.browser = "chrome";
+  }
+
+  @Test
+  void successfulLogin() {
+    open("/login");
+    $("#username").setValue("alice");
+    $("#password").setValue("secret");
+    $("button[type=submit]").click();
+    $(".welcome").shouldHave(text("Welcome, Alice"));
+  }
+
+  @Test
+  void loginPageIsVisible() {
+    open("/login");
+    $("h1").shouldBe(visible).shouldHave(text("Sign in"));
+  }
+}
+```
+
+<Tip>
+  Stack multiple extensions with `@ExtendWith` or `@RegisterExtension`. Extensions execute in the order they are declared.
+</Tip>

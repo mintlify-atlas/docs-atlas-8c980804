@@ -1,0 +1,287 @@
+---
+title: "Configuration overview"
+description: "All Selenide configuration options and how to set them"
+---
+
+Selenide gives you two ways to configure your tests: a global static `Configuration` class and a per-driver `SelenideConfig` instance. Every option also maps to a Java system property, so you can change settings from the command line without touching your code.
+
+## Ways to configure
+
+### Static Configuration class
+
+The `Configuration` class holds static fields you can set directly in your test setup or a base class:
+
+```java
+import com.codeborne.selenide.Configuration;
+
+Configuration.browser = "firefox";
+Configuration.baseUrl = "https://example.com";
+Configuration.timeout = 6000;
+```
+
+This is the most common approach. The values apply globally to all tests in the same JVM process.
+
+### SelenideConfig instance
+
+For parallel test runs or when you need per-driver settings, create a `SelenideConfig` instance and pass it to `SelenideDriver`:
+
+```java
+SelenideConfig config = new SelenideConfig()
+    .browser("firefox")
+    .baseUrl("https://example.com")
+    .timeout(6000);
+
+SelenideDriver driver = new SelenideDriver(config);
+```
+
+`SelenideConfig` methods are fluent — they return the same instance — so you can chain calls.
+
+### System properties
+
+Every configuration field reads a corresponding `selenide.*` system property at startup. Pass properties with `-D` on the command line or in your build tool:
+
+```bash
+mvn test -Dselenide.browser=firefox -Dselenide.timeout=6000
+```
+
+```bash
+gradle test -Dselenide.browser=edge -Dselenide.headless=true
+```
+
+<Note>
+System properties are read once when `SelenideConfig` is first constructed. Changing a system property after the driver starts has no effect.
+</Note>
+
+---
+
+## All configuration options
+
+### General
+
+<ParamField path="baseUrl" type="string" default="http://localhost:8080">
+  Base URL prepended to relative URLs passed to `open()`. Set this to your application's root URL so you can write `open("/login")` instead of the full URL.
+
+  System property: `selenide.baseUrl`
+</ParamField>
+
+<ParamField path="reportsFolder" type="string" default="build/reports/tests">
+  Directory where Selenide saves screenshots and page sources on test failure. The path is resolved relative to the working directory.
+
+  System property: `selenide.reportsFolder`
+</ParamField>
+
+<ParamField path="downloadsFolder" type="string" default="build/downloads">
+  Directory where downloaded files are saved. Used by Selenide's file download API.
+
+  System property: `selenide.downloadsFolder`
+</ParamField>
+
+<ParamField path="reportsUrl" type="string" default="null">
+  Base URL for the reports folder when running on a CI server. When set, Selenide includes a link to the screenshot in test failure messages. Automatically detected from common CI environment variables.
+
+  System property: `selenide.reportsUrl`
+</ParamField>
+
+---
+
+### Browser
+
+<ParamField path="browser" type="string" default="chrome">
+  Browser to use. Accepted values: `chrome`, `firefox`, `edge`, `safari`, `ie`, `internet explorer`. You can also pass a fully-qualified class name of a custom `WebDriverProvider`.
+
+  System property: `selenide.browser`
+</ParamField>
+
+<ParamField path="headless" type="boolean" default="false">
+  Run the browser in headless mode (no visible window). Supported for Chrome, Firefox, and Edge.
+
+  System property: `selenide.headless`
+</ParamField>
+
+<ParamField path="browserSize" type="string" default="1366x768">
+  Browser window size in the format `WIDTHxHEIGHT`. Set to `null` to let the browser use its default size.
+
+  System property: `selenide.browserSize`
+</ParamField>
+
+<ParamField path="browserVersion" type="string" default="null">
+  Specific browser version to request. Useful when connecting to a remote grid that hosts multiple versions.
+
+  System property: `selenide.browserVersion`
+</ParamField>
+
+<ParamField path="browserBinary" type="string" default="null">
+  Path to the browser executable. Leave unset to use the browser found on the system `PATH`.
+
+  System property: `selenide.browserBinary`
+</ParamField>
+
+<ParamField path="browserPosition" type="string" default="null">
+  Browser window position on screen in the format `X:Y` (e.g. `100:200`).
+
+  System property: `selenide.browserPosition`
+</ParamField>
+
+<ParamField path="remote" type="string" default="null">
+  URL of a remote WebDriver endpoint (Selenium Grid, Selenoid, etc.). When set, Selenide connects to the remote node instead of launching a local browser.
+
+  System property: `selenide.remote`
+
+  Example: `http://selenium-grid:4444/wd/hub`
+</ParamField>
+
+<ParamField path="pageLoadStrategy" type="string" default="normal">
+  WebDriver page load strategy. Accepted values: `normal`, `eager`, `none`.
+
+  - `normal` — waits for the `load` event (all resources loaded)
+  - `eager` — waits for `DOMContentLoaded` only
+  - `none` — returns immediately after navigation starts
+
+  System property: `selenide.pageLoadStrategy`
+</ParamField>
+
+<ParamField path="pageLoadTimeout" type="long" default="30000">
+  Maximum time in milliseconds to wait for a page to load before throwing a timeout error.
+
+  System property: `selenide.pageLoadTimeout`
+</ParamField>
+
+<ParamField path="webdriverLogsEnabled" type="boolean" default="false">
+  Collect browser console logs. When enabled, logs are included in test reports.
+
+  System property: `selenide.webdriverLogsEnabled`
+</ParamField>
+
+---
+
+### Waiting and assertions
+
+<ParamField path="timeout" type="long" default="4000">
+  Maximum time in milliseconds Selenide waits for a condition to become true (e.g. element visible, text matches). Increase this value for slow applications.
+
+  System property: `selenide.timeout`
+</ParamField>
+
+<ParamField path="pollingInterval" type="long" default="200">
+  Interval in milliseconds between condition checks during the wait loop.
+
+  System property: `selenide.pollingInterval`
+</ParamField>
+
+<ParamField path="assertionMode" type="AssertionMode" default="STRICT">
+  Controls when assertion failures are reported.
+
+  - `STRICT` — fails the test immediately on the first failed assertion
+  - `SOFT` — collects all failures and reports them together at the end of the test
+
+  System property: `selenide.assertionMode`
+</ParamField>
+
+<ParamField path="reopenBrowserOnFail" type="boolean" default="true">
+  Automatically close and reopen the browser if a test fails. This keeps subsequent tests from being affected by a browser left in a bad state.
+
+  System property: `selenide.reopenBrowserOnFail`
+</ParamField>
+
+---
+
+### Element interaction
+
+<ParamField path="fastSetValue" type="boolean" default="false">
+  Use JavaScript to set input values instead of simulating keystrokes. Faster, but skips browser events (`input`, `change`) that your application may rely on.
+
+  System property: `selenide.fastSetValue`
+</ParamField>
+
+<ParamField path="clickViaJs" type="boolean" default="false">
+  Perform clicks via JavaScript (`element.click()`) instead of the WebDriver click command. Useful when native clicks are intercepted by overlapping elements.
+
+  System property: `selenide.clickViaJs`
+</ParamField>
+
+<ParamField path="selectorMode" type="SelectorMode" default="CSS">
+  Engine used to resolve CSS selectors.
+
+  - `CSS` — standard Selenium CSS engine (default)
+  - `Sizzle` — Sizzle.js engine, which supports extended CSS3 pseudo-selectors such as `:input`, `:contains('text')`, `:first`, `:last`
+
+  System property: `selenide.selectorMode`
+</ParamField>
+
+<ParamField path="textCheck" type="TextCheck" default="PARTIAL_TEXT">
+  Controls how text assertions match element content.
+
+  - `PARTIAL_TEXT` — `shouldHave(text("Hello"))` matches `"Hello World"` (current default)
+  - `FULL_TEXT` — requires an exact match; will become the default in Selenide 8.0.0
+
+  System property: `selenide.textCheck`
+</ParamField>
+
+---
+
+### Screenshots and reporting
+
+<ParamField path="screenshots" type="boolean" default="true">
+  Capture a screenshot automatically on test failure.
+
+  System property: `selenide.screenshots`
+</ParamField>
+
+<ParamField path="savePageSource" type="boolean" default="true">
+  Save the full HTML page source automatically on test failure alongside the screenshot.
+
+  System property: `selenide.savePageSource`
+</ParamField>
+
+---
+
+### File downloads
+
+<ParamField path="fileDownload" type="FileDownloadMode" default="HTTPGET">
+  Strategy used when downloading files.
+
+  - `HTTPGET` — sends a direct HTTP GET request using the browser's session cookies. Works only for `<a href>` links.
+  - `PROXY` — routes downloads through Selenide's embedded proxy server. Works for any element, including form submissions.
+  - `FOLDER` — monitors a local downloads folder for new files. Works for any browser.
+  - `CDP` — uses Chrome DevTools Protocol to intercept downloads. Chromium-based browsers only.
+
+  System property: `selenide.fileDownload`
+</ParamField>
+
+---
+
+### Proxy
+
+<ParamField path="proxyEnabled" type="boolean" default="false">
+  Enable Selenide's built-in proxy server. Required when `fileDownload` is set to `PROXY`.
+
+  System property: `selenide.proxyEnabled`
+</ParamField>
+
+<ParamField path="proxyHost" type="string" default="null">
+  Hostname or IP address of the proxy server. Defaults to the local machine when unset.
+
+  System property: `selenide.proxyHost`
+</ParamField>
+
+<ParamField path="proxyPort" type="int" default="0">
+  Port for the proxy server. When set to `0`, a random available port is chosen automatically.
+
+  System property: `selenide.proxyPort`
+</ParamField>
+
+---
+
+### Remote timeouts
+
+<ParamField path="remoteConnectionTimeout" type="long" default="10000">
+  Timeout in milliseconds for establishing a connection to a remote WebDriver endpoint.
+
+  System property: `selenide.remoteConnectionTimeout`
+</ParamField>
+
+<ParamField path="remoteReadTimeout" type="long" default="90000">
+  Timeout in milliseconds for reading a response from a remote WebDriver endpoint. Increase this if remote commands time out on slow networks or heavy pages.
+
+  System property: `selenide.remoteReadTimeout`
+</ParamField>

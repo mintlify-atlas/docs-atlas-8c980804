@@ -1,0 +1,110 @@
+---
+title: "Selenium Grid"
+description: "Running tests on Selenium Grid with selenide-grid"
+---
+
+## What is Selenium Grid?
+
+[Selenium Grid](https://www.selenium.dev/documentation/grid/) is the official Selenium project for distributing browser sessions across multiple machines. It routes WebDriver commands from your tests to nodes that run the actual browsers.
+
+Most Selenide features work with Selenium Grid out of the box. The `selenide-grid` plugin adds support for the two areas that require extra integration: file downloads from Grid nodes and Selenide's built-in proxy.
+
+## Add the dependency
+
+<CodeGroup>
+
+```xml Maven (pom.xml)
+<dependency>
+  <groupId>com.codeborne</groupId>
+  <artifactId>selenide-grid</artifactId>
+  <version>7.15.1</version>
+  <scope>test</scope>
+</dependency>
+```
+
+```groovy Gradle (build.gradle)
+testImplementation 'com.codeborne:selenide-grid:7.15.1'
+```
+
+</CodeGroup>
+
+## Connect to Grid
+
+Set `Configuration.remote` to your Grid hub's WebDriver endpoint:
+
+```java
+Configuration.remote = "http://grid-hub:4444/wd/hub";
+```
+
+<Tip>
+  Replace `grid-hub` with the hostname or IP address of your Hub. For Selenium Grid 4, you can also point directly to the standalone URL.
+</Tip>
+
+## Features
+
+### File downloads
+
+Selenide provides four file download strategies. Their behaviour on Grid differs:
+
+| Method     | Works on Grid? | Notes |
+|------------|---------------|-------|
+| `HTTPGET`  | Yes | Downloads directly over HTTP. No plugin needed. |
+| `PROXY`    | Yes | Works unless the test machine is unreachable from the Grid node. |
+| `FOLDER`   | Requires plugin | Downloads to the node container; plugin retrieves the file via the [Grid managed-downloads API](https://www.selenium.dev/documentation/grid/configuration/cli_options/#enabling-managed-downloads-by-the-node). |
+| `CDP`      | Requires plugin | Same as `FOLDER` — file is inside the container. |
+
+To use `FOLDER` or `CDP`, set the download mode and call `download()` as usual:
+
+```java
+Configuration.fileDownload = FOLDER;
+
+File report = $("a#report").download();
+```
+
+The plugin fetches the file from the Grid node automatically.
+
+### Proxy
+
+Selenide's built-in proxy works with Grid in most configurations. The one exception is when your test machine is not network-accessible from the Grid node — for example, when the Grid runs in a remote data centre and your tests run on a developer laptop.
+
+<Note>
+  If you need proxy-based features (such as request interception or network traffic assertions) and your test machine is not reachable from Grid, consider switching to `CDP` mode or restructuring your network topology.
+</Note>
+
+## Parallel execution
+
+Selenium Grid is designed for parallel test execution. Each WebDriver session runs on a separate node, so your tests can run concurrently without sharing browser state. Configure the degree of parallelism in your test runner — the Grid handles session routing automatically.
+
+<Tip>
+  Make sure your Grid has enough node capacity (or uses autoscaling) to match your configured parallelism level. Queued sessions increase test duration.
+</Tip>
+
+## How it works
+
+When you call `$("a#report").download()` using `FOLDER` or `CDP` mode, the plugin:
+
+<Steps>
+  <Step title="Clicks the element">
+    Triggers the download by clicking the link or button.
+  </Step>
+  <Step title="Waits for the browser to download">
+    Lets the browser save the file to its default download location inside the Grid node container.
+  </Step>
+  <Step title="Fetches the file via the Grid API">
+    Retrieves the file from the node using the Selenium Grid managed-downloads API and returns it to your test.
+  </Step>
+</Steps>
+
+## Grid vs Selenoid
+
+| Feature | selenide-grid | selenide-selenoid |
+|---------|--------------|-------------------|
+| File downloads | Yes (`FOLDER`, `CDP`) | Yes |
+| Clipboard access | No | Yes |
+| BasicAuth support | No | Yes |
+| Maintained | Yes | No (deprecated) |
+| Backend | Selenium Grid (official) | Selenoid (Aerokube) |
+
+<Note>
+  Clipboard support is not yet available in `selenide-grid`. If your tests require clipboard access, use [`selenide-moon`](/modules/moon) instead.
+</Note>

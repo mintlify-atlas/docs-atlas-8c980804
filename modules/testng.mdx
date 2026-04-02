@@ -1,0 +1,226 @@
+---
+title: "TestNG"
+description: "Using Selenide with TestNG"
+---
+
+TestNG support is provided by the separate `selenide-testng` module. Add it alongside your existing TestNG dependency.
+
+## Add the dependency
+
+<CodeGroup>
+
+```xml Maven (pom.xml)
+<dependency>
+  <groupId>com.codeborne</groupId>
+  <artifactId>selenide-testng</artifactId>
+  <version>7.15.1</version>
+  <scope>test</scope>
+</dependency>
+```
+
+```groovy Gradle (build.gradle)
+testImplementation 'com.codeborne:selenide-testng:7.15.1'
+```
+
+</CodeGroup>
+
+<Note>
+  `selenide-testng` declares TestNG as an API dependency. You do not need to add `org.testng:testng` separately.
+</Note>
+
+## Listeners
+
+Selenide integrates with TestNG through listeners. Register them on your test class with the `@Listeners` annotation. All listeners are in the `com.codeborne.selenide.testng` package.
+
+### TextReport
+
+Writes a human-readable log of Selenide commands to the console after each test. Only activates for classes annotated with `@Listeners({TextReport.class})` — subclasses inherit the listener automatically.
+
+```java
+@Listeners({TextReport.class})
+public class MyTest {
+  // Selenide command log printed after each test
+}
+```
+
+By default it logs both passed and failed tests. Control this with static flags before your suite runs:
+
+```java
+TextReport.onFailedTest = true;
+TextReport.onSucceededTest = false; // only log on failure
+```
+
+### ScreenShooter
+
+Takes a screenshot and saves the page source when a test fails. Register it as a listener on your class:
+
+```java
+@Listeners({ScreenShooter.class})
+public class MyTest {
+  // screenshot saved on failure
+}
+```
+
+To also capture passing tests:
+
+```java
+ScreenShooter.captureSuccessfulTests = true;
+```
+
+<Tip>
+  `ScreenShooter` only captures screenshots for the static WebDriver managed by Selenide. It does not capture screenshots for a `SelenideDriver` instance you create manually.
+</Tip>
+
+### BrowserPerTest
+
+Closes the browser after each individual test method (on success, failure, or configuration failure). Use this when tests must not share browser state.
+
+```java
+@Listeners({BrowserPerTest.class})
+public class MyTest {
+  // browser closed after each @Test method
+}
+```
+
+### BrowserPerClass
+
+Closes the browser once after all tests in the class have finished. Use this for a shared browser session across all methods in a class.
+
+```java
+@Listeners({BrowserPerClass.class})
+public class MyTest {
+  // browser closed after the last @Test method in the class
+}
+```
+
+<Warning>
+  Do not use `BrowserPerTest` and `BrowserPerClass` together on the same class. Pick the strategy that matches your isolation requirements.
+</Warning>
+
+### SoftAsserts
+
+Collects all failed `should*` assertions and throws a combined error after each test, instead of stopping at the first failure. Register it as a listener and set `Configuration.assertionMode = SOFT`:
+
+```java
+@Listeners({SoftAsserts.class})
+public class MyTest {
+
+  @BeforeClass
+  public void setup() {
+    Configuration.assertionMode = AssertionMode.SOFT;
+  }
+
+  @Test
+  public void checkMultipleConditions() {
+    open("/dashboard");
+    $("h1").shouldHave(text("Dashboard"));
+    $(".user-name").shouldHave(text("Alice"));
+    $(".notifications").shouldBe(visible);
+    // all three assertions run; failures are reported together
+  }
+}
+```
+
+To disable full stack traces in the combined error:
+
+```java
+SoftAsserts.fullStacktraces = false;
+```
+
+<Note>
+  `SoftAsserts` skips soft assertion collection for `@Test` methods that declare `expectedExceptions`. Those methods use normal (hard) assertion behavior.
+</Note>
+
+## Browser lifecycle
+
+Selenide opens the browser lazily on the first `open()` call. You do not need to create a `WebDriver` instance yourself.
+
+Choose a browser closure strategy based on your test isolation needs:
+
+| Listener | Browser closes |
+|---|---|
+| `BrowserPerTest` | After each `@Test` method |
+| `BrowserPerClass` | After all `@Test` methods in the class |
+| Neither | Call `Selenide.closeWebDriver()` in `@AfterMethod` or `@AfterClass` |
+
+You can also close the browser manually in a `@AfterMethod`:
+
+```java
+import static com.codeborne.selenide.Selenide.closeWebDriver;
+
+@AfterMethod
+public void tearDown() {
+  closeWebDriver();
+}
+```
+
+## Parallel test execution
+
+TestNG supports parallel test execution via the `parallel` attribute in `testng.xml`. Selenide manages one browser per thread, so parallel methods or classes are safe as long as each thread calls `open()` independently.
+
+```xml testng.xml
+<suite name="MyTests" parallel="methods" thread-count="4">
+  <test name="UI Tests">
+    <classes>
+      <class name="com.example.LoginTest"/>
+    </classes>
+  </test>
+</suite>
+```
+
+<Warning>
+  When running tests in parallel, use `BrowserPerTest` (not `BrowserPerClass`) so each thread gets a clean browser session. Shared browser state across threads causes race conditions.
+</Warning>
+
+## Combining multiple listeners
+
+Register several listeners together to get screenshots, text reports, and per-test browser closure at the same time:
+
+```java
+@Listeners({ScreenShooter.class, TextReport.class, BrowserPerTest.class})
+public class MyTest {
+  // ...
+}
+```
+
+## Complete example
+
+```java
+import com.codeborne.selenide.Configuration;
+import com.codeborne.selenide.testng.BrowserPerTest;
+import com.codeborne.selenide.testng.ScreenShooter;
+import com.codeborne.selenide.testng.TextReport;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Listeners;
+import org.testng.annotations.Test;
+
+import static com.codeborne.selenide.Condition.text;
+import static com.codeborne.selenide.Condition.visible;
+import static com.codeborne.selenide.Selenide.$;
+import static com.codeborne.selenide.Selenide.open;
+
+@Listeners({ScreenShooter.class, TextReport.class, BrowserPerTest.class})
+public class LoginTest {
+
+  @BeforeClass
+  public void setup() {
+    Configuration.baseUrl = "https://example.com";
+    Configuration.browser = "chrome";
+  }
+
+  @Test
+  public void successfulLogin() {
+    open("/login");
+    $("#username").setValue("alice");
+    $("#password").setValue("secret");
+    $("button[type=submit]").click();
+    $(".welcome").shouldHave(text("Welcome, Alice"));
+  }
+
+  @Test
+  public void loginPageIsVisible() {
+    open("/login");
+    $("h1").shouldBe(visible).shouldHave(text("Sign in"));
+  }
+}
+```

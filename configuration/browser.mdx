@@ -1,0 +1,248 @@
+---
+title: "Browser configuration"
+description: "Choosing and configuring browsers for your tests"
+---
+
+Selenide manages the browser lifecycle for you. You tell it which browser to use and how to configure it, and Selenide handles creating, reusing, and closing the WebDriver instance.
+
+## Setting the browser
+
+Set `Configuration.browser` to the name of the browser you want to run. Selenide automatically downloads the matching WebDriver binary using WebDriverManager.
+
+```java
+Configuration.browser = "chrome";   // default
+Configuration.browser = "firefox";
+Configuration.browser = "edge";
+Configuration.browser = "safari";
+Configuration.browser = "ie";
+```
+
+### Using Browsers constants
+
+The `Browsers` interface provides constants to avoid hardcoding strings:
+
+```java
+import com.codeborne.selenide.Browsers;
+
+Configuration.browser = Browsers.CHROME;
+Configuration.browser = Browsers.FIREFOX;
+Configuration.browser = Browsers.EDGE;
+Configuration.browser = Browsers.SAFARI;
+Configuration.browser = Browsers.IE;
+```
+
+<Tip>
+Use the `Browsers` constants instead of string literals to avoid typos and get IDE auto-completion.
+</Tip>
+
+---
+
+## Headless mode
+
+Run tests without a visible browser window. Useful in CI environments.
+
+```java
+Configuration.headless = true;
+```
+
+Or with a system property:
+
+```bash
+mvn test -Dselenide.headless=true
+```
+
+<Note>
+Headless mode is supported on Chrome, Firefox, and Edge. Safari and IE do not support headless operation.
+</Note>
+
+---
+
+## Browser window size
+
+Control the initial browser window dimensions:
+
+```java
+Configuration.browserSize = "1920x1080";  // full HD
+Configuration.browserSize = "1366x768";   // default
+Configuration.browserSize = null;         // let the OS decide
+```
+
+The format is `WIDTHxHEIGHT` in pixels.
+
+---
+
+## Browser version
+
+Request a specific browser version. This is most useful when connecting to a Selenium Grid or Selenoid that hosts multiple versions:
+
+```java
+Configuration.browserVersion = "120";
+```
+
+When running locally with WebDriverManager, the version hint is passed to the driver manager.
+
+---
+
+## Browser binary
+
+Point Selenide to a specific browser executable instead of the one on the system `PATH`:
+
+```java
+Configuration.browserBinary = "/usr/bin/google-chrome-beta";
+```
+
+```java
+// Windows example
+Configuration.browserBinary = "C:\\Program Files\\Google\\Chrome Dev\\Application\\chrome.exe";
+```
+
+---
+
+## Remote WebDriver
+
+Connect to a Selenium Grid, Selenoid, or any other remote WebDriver endpoint:
+
+```java
+Configuration.remote = "http://selenium-grid:4444/wd/hub";
+```
+
+<Steps>
+  <Step title="Set the remote URL">
+    ```java
+    Configuration.remote = "http://localhost:4444/wd/hub";
+    ```
+  </Step>
+  <Step title="Set the browser">
+    ```java
+    Configuration.browser = Browsers.CHROME;
+    Configuration.browserVersion = "120";
+    ```
+  </Step>
+  <Step title="Optionally adjust remote timeouts">
+    ```java
+    Configuration.remoteConnectionTimeout = 15000; // ms
+    Configuration.remoteReadTimeout = 120000;       // ms
+    ```
+  </Step>
+</Steps>
+
+<Tip>
+When connecting to Selenoid, you can also pass Selenoid-specific capabilities through `browserCapabilities` — for example, to request video recording or set the session name.
+</Tip>
+
+---
+
+## Custom browser capabilities
+
+Add arbitrary WebDriver capabilities through `Configuration.browserCapabilities`:
+
+```java
+import org.openqa.selenium.MutableCapabilities;
+
+Configuration.browserCapabilities.setCapability("selenoid:options", Map.of(
+    "enableVideo", true,
+    "name", "My test"
+));
+```
+
+For Chrome-specific options, use `ChromeOptions`:
+
+```java
+import org.openqa.selenium.chrome.ChromeOptions;
+
+ChromeOptions options = new ChromeOptions();
+options.addArguments("--disable-notifications");
+options.addArguments("--disable-popup-blocking");
+
+Configuration.browserCapabilities.merge(options);
+```
+
+For Firefox-specific options, use `FirefoxOptions`:
+
+```java
+import org.openqa.selenium.firefox.FirefoxOptions;
+import org.openqa.selenium.firefox.FirefoxProfile;
+
+FirefoxProfile profile = new FirefoxProfile();
+profile.setPreference("browser.download.folderList", 2);
+
+FirefoxOptions options = new FirefoxOptions();
+options.setProfile(profile);
+
+Configuration.browserCapabilities.merge(options);
+```
+
+---
+
+## Custom WebDriverProvider
+
+For full control over WebDriver creation, implement the `WebDriverProvider` interface and set `Configuration.browser` to the class name:
+
+```java
+import com.codeborne.selenide.WebDriverProvider;
+import org.openqa.selenium.Capabilities;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
+
+public class MyCustomDriver implements WebDriverProvider {
+    @Override
+    public WebDriver createDriver(Capabilities capabilities) {
+        ChromeOptions options = new ChromeOptions();
+        options.addArguments("--disable-extensions");
+        options.merge(capabilities);
+        return new ChromeDriver(options);
+    }
+}
+```
+
+Register it by class name:
+
+```java
+Configuration.browser = MyCustomDriver.class.getName();
+```
+
+Or with `SelenideConfig`:
+
+```java
+SelenideConfig config = new SelenideConfig()
+    .browser(MyCustomDriver.class.getName());
+```
+
+---
+
+## Page load strategy
+
+Control when WebDriver considers navigation complete after calling `open()`:
+
+<AccordionGroup>
+  <Accordion title="normal (default)">
+    Waits for the browser `load` event, meaning all resources (images, scripts, stylesheets) have finished loading. Safest option for most applications.
+
+    ```java
+    Configuration.pageLoadStrategy = "normal";
+    ```
+  </Accordion>
+  <Accordion title="eager">
+    Waits only for `DOMContentLoaded`. Returns sooner than `normal`, but external resources may still be loading. Useful for single-page applications that render quickly.
+
+    ```java
+    Configuration.pageLoadStrategy = "eager";
+    ```
+  </Accordion>
+  <Accordion title="none">
+    Returns immediately after the browser starts navigating. You are responsible for waiting until the page is ready.
+
+    ```java
+    Configuration.pageLoadStrategy = "none";
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Page load timeout
+
+The maximum time to wait for a page to load before throwing an error. Defaults to 30 seconds:
+
+```java
+Configuration.pageLoadTimeout = 60_000; // 60 seconds
+```

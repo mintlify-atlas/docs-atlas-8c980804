@@ -1,0 +1,386 @@
+---
+title: "Actions"
+description: "Interacting with elements: clicking, typing, selecting, and more"
+---
+
+Every interaction method on `SelenideElement` is chainable and returns `this`, so you can write concise, readable test code. Selenide automatically waits for the element to be visible and interactable before executing the action.
+
+```java
+import static com.codeborne.selenide.Selenide.$;
+
+$("#username").setValue("alice").pressTab();
+$("#password").setValue("secret").pressEnter();
+```
+
+## Clicking
+
+### Basic click
+
+```java
+// Default click — uses Selenium's native click
+$("#submit").click();
+
+// Returns the element for chaining
+$("#terms").click().shouldBe(selected);
+```
+
+### Click options
+
+`ClickOptions` lets you override the click mechanism or apply an offset from the element center.
+
+```java
+import static com.codeborne.selenide.ClickOptions.*;
+
+// Click via JavaScript (useful when native click is intercepted)
+$("#submit").click(usingJavaScript());
+
+// Click at an offset from center (x=10, y=-5 from center)
+$("#canvas").click(usingDefaultMethod().offset(10, -5));
+
+// JavaScript click at an offset
+$("#canvas").click(usingJavaScript().offset(10, -5));
+```
+
+### Double-click and right-click
+
+```java
+// Double-click
+$("#item").doubleClick();
+$("#item").doubleClick(usingJavaScript());
+
+// Right-click (context menu)
+$("#file").contextClick();
+```
+
+## Typing and setting values
+
+### `setValue` / `val`
+
+Clears the field first, then sets the value. By default calls `WebElement.clear()` then `WebElement.sendKeys(text)`.
+
+```java
+$("#name").setValue("Alice");
+$("#name").val("Alice");       // shorthand, identical behaviour
+```
+
+When `Configuration.fastSetValue = true`, Selenide uses JavaScript to set the value and fires `focus`, `keydown`, `keypress`, `input`, `keyup`, and `change` events.
+
+<CodeGroup>
+
+```java set value
+$("#email").setValue("alice@example.com");
+```
+
+```java set via options
+import static com.codeborne.selenide.SetValueOptions.*;
+
+// Trigger only specific events after setting
+$("#search").setValue(withText("query").withDisplayedText("query"));
+```
+
+</CodeGroup>
+
+### `type`
+
+Mimics a real user typing — sends each character individually. Useful for fields that respond to keystroke events, such as autocomplete inputs.
+
+```java
+// Type character by character
+$("#search").type("sel");
+
+// With options
+import static com.codeborne.selenide.TypeOptions.*;
+
+$("#search").type(text("sel").withDelay(ofMillis(50)));
+```
+
+<Tip>
+Use `type()` when the field has live suggestions or validation that fires on each keystroke. Use `setValue()` for speed when the field only cares about the final value.
+</Tip>
+
+### `append`
+
+Appends text to the current value without clearing the field first. Triggers the `change` event.
+
+```java
+$("#tags").setValue("java").append(", selenide");
+// result: "java, selenide"
+```
+
+### `clear`
+
+Clears the input field.
+
+```java
+$("#search").clear();
+```
+
+### `paste`
+
+Pastes the current clipboard contents into the field.
+
+```java
+// Requires clipboard content to be set beforehand
+$("#notes").paste();
+```
+
+## Keyboard shortcuts
+
+### Dedicated press methods
+
+```java
+$("input").pressEnter();    // sends Keys.ENTER
+$("input").pressEscape();   // sends Keys.ESCAPE
+$("input").pressTab();      // sends Keys.TAB
+```
+
+### `press` — arbitrary keys
+
+```java
+import org.openqa.selenium.Keys;
+
+// Single key
+$(".list-item").press(Keys.DOWN);
+
+// Key combination (Ctrl+A)
+$("textarea").press(Keys.chord(Keys.CONTROL, "a"));
+
+// Chainable
+$("input").press(Keys.END).press(Keys.BACK_SPACE);
+```
+
+### `sendKeys`
+
+Standard Selenium `sendKeys` — available on `SelenideElement` for compatibility, but `press()` is preferred because it is chainable.
+
+```java
+$("#editor").sendKeys("Hello, world!");
+```
+
+## Mouse actions
+
+### Hover
+
+Moves the mouse over the element without clicking, triggering `mouseover`/`mouseenter` events.
+
+```java
+$("#menu").hover();
+```
+
+With offset from center:
+
+```java
+import static com.codeborne.selenide.HoverOptions.*;
+
+$("#tooltip-trigger").hover(withOffset(5, 10));
+```
+
+### Drag and drop
+
+```java
+import static com.codeborne.selenide.DragAndDropOptions.*;
+
+// By CSS selector
+$("#draggable").dragAndDrop(to("#droptarget"));
+
+// To a SelenideElement
+$("#draggable").dragAndDrop(to($("#droptarget")));
+```
+
+Control which implementation is used:
+
+```java
+// Using JavaScript (default)
+$("#draggable").dragAndDrop(to("#droptarget").usingJS());
+
+// Using Selenium Actions API
+$("#draggable").dragAndDrop(to("#droptarget").usingSeleniumActions());
+```
+
+<Note>
+The JavaScript implementation works reliably in most browsers. Switch to `usingSeleniumActions()` if your app uses HTML5 drag events that require native mouse simulation.
+</Note>
+
+## Remove focus
+
+```java
+// Remove browser focus from the element
+$("#username").unfocus();
+```
+
+## Select elements
+
+All `selectOption*` methods apply to `<select>` elements.
+
+```java
+SelenideElement country = $("#country");
+
+// By visible text (exact match)
+country.selectOption("United States");
+
+// Multiple selections (for multi-select)
+country.selectOption("Canada", "Mexico");
+
+// By partial text match
+country.selectOptionContainingText("States");
+
+// By the option's value attribute
+country.selectOptionByValue("us");
+
+// By index (0-based)
+country.selectOption(0);
+```
+
+Read the selected value back:
+
+```java
+String text  = country.getSelectedOptionText();
+String value = country.getSelectedOptionValue();
+
+// The selected <option> element itself
+SelenideElement opt = country.getSelectedOption();
+```
+
+## File upload
+
+Upload files to `<input type="file">` elements.
+
+```java
+// From the filesystem
+$("input[type=file]").uploadFile(new File("/path/to/report.pdf"));
+
+// Multiple files at once
+$("input[type=file]").uploadFile(new File("a.pdf"), new File("b.pdf"));
+
+// From the classpath (test resources)
+$("input[type=file]").uploadFromClasspath("files/sample.pdf");
+```
+
+<Tip>
+`uploadFromClasspath` searches the classpath, so you can place test files under `src/test/resources` and reference them by relative path.
+</Tip>
+
+## Scrolling
+
+<AccordionGroup>
+
+<Accordion title="scrollTo()">
+
+Scrolls the page until this element is in view. The scrolling is instantaneous (ignores `scroll-behavior: smooth`).
+
+```java
+$("#footer-link").scrollTo();
+```
+
+</Accordion>
+
+<Accordion title="scrollIntoView(options)">
+
+Fine-grained control over scroll alignment using `ScrollIntoViewOptions`.
+
+```java
+import static com.codeborne.selenide.ScrollIntoViewOptions.*;
+import static com.codeborne.selenide.commands.ScrollIntoView.ScrollBehavior.*;
+import static com.codeborne.selenide.commands.ScrollIntoView.ScrollBlock.*;
+
+// Scroll element to the center of the viewport, instantly
+$(".section-header").scrollIntoView(instant().block(center));
+
+// Scroll element to the bottom edge
+$(".footer").scrollIntoView(instant().block(end));
+```
+
+</Accordion>
+
+<Accordion title="scrollIntoCenter()">
+
+Shorthand that scrolls the element to the vertical center of the viewport instantly.
+
+```java
+$("#main-heading").scrollIntoCenter();
+```
+
+</Accordion>
+
+<Accordion title="scroll(options) — directional scroll">
+
+Scrolls the element itself by a given distance and direction.
+
+```java
+import static com.codeborne.selenide.ScrollOptions.*;
+import static com.codeborne.selenide.ScrollDirection.*;
+
+// Scroll the element down 100 px
+$("#scrollable-panel").scroll(direction(DOWN).distance(100));
+
+// Scroll right 250 px
+$("#wide-table").scroll(direction(RIGHT).distance(250));
+```
+
+</Accordion>
+
+</AccordionGroup>
+
+## Radio buttons and checkboxes
+
+```java
+// Select a radio button by its value attribute
+$("[name='color']").selectRadio("blue");
+
+// Check or uncheck a checkbox
+$("#agree").setSelected(true);
+$("#agree").setSelected(false);
+```
+
+## Chaining examples
+
+Every action method returns `this` (`SelenideElement`), enabling fluent chains:
+
+```java
+// Fill a login form
+$("#username")
+    .shouldBe(visible)
+    .setValue("alice")
+    .pressTab();
+
+$("#password")
+    .setValue("s3cret")
+    .pressEnter();
+
+// Type into a search field and pick the first suggestion
+$("#search")
+    .type("Selen")
+    .find(".suggestion")
+    .click();
+```
+
+## Quick reference
+
+| Action | Method |
+|---|---|
+| Click | `click()` / `click(ClickOptions)` |
+| Double-click | `doubleClick()` / `doubleClick(ClickOptions)` |
+| Right-click | `contextClick()` |
+| Set value | `setValue(text)` / `val(text)` |
+| Type character by character | `type(text)` |
+| Append text | `append(text)` |
+| Clear field | `clear()` |
+| Paste clipboard | `paste()` |
+| Send Enter | `pressEnter()` |
+| Send Escape | `pressEscape()` |
+| Send Tab | `pressTab()` |
+| Send arbitrary key | `press(Keys.*)` |
+| Hover | `hover()` / `hover(HoverOptions)` |
+| Drag and drop | `dragAndDrop(DragAndDropOptions)` |
+| Remove focus | `unfocus()` |
+| Select option by text | `selectOption(text)` |
+| Select option by value | `selectOptionByValue(value)` |
+| Select option by partial text | `selectOptionContainingText(text)` |
+| Select radio | `selectRadio(value)` |
+| Check/uncheck | `setSelected(boolean)` |
+| Upload file | `uploadFile(File...)` |
+| Upload from classpath | `uploadFromClasspath(String...)` |
+| Scroll to element | `scrollTo()` |
+| Scroll into view | `scrollIntoView(ScrollIntoViewOptions)` |
+| Scroll to center | `scrollIntoCenter()` |
+| Directional scroll | `scroll(ScrollOptions)` |

@@ -1,0 +1,224 @@
+---
+title: "Video recorder"
+description: "Recording browser test execution as video"
+---
+
+The video recorder captures browser activity during a test and saves it as an MP4 file. It is intended for debugging flaky tests — use it selectively rather than for every test run.
+
+## How it works
+
+The recorder takes screenshots of the browser window at regular intervals using the standard WebDriver API. When the test ends, it assembles the screenshots into a video file using [FFmpeg](https://ffmpeg.org/).
+
+<Warning>
+  FFmpeg must be installed on the machine running the tests. Install it via your system package manager (e.g. `apt install ffmpeg`, `brew install ffmpeg`).
+</Warning>
+
+## Add the dependency
+
+<CodeGroup>
+
+```xml Maven (pom.xml)
+<dependency>
+  <groupId>com.codeborne</groupId>
+  <artifactId>selenide-video-recorder</artifactId>
+  <version>7.15.1</version>
+  <scope>test</scope>
+</dependency>
+```
+
+```groovy Gradle (build.gradle)
+testImplementation "com.codeborne:selenide-video-recorder:7.15.1"
+```
+
+</CodeGroup>
+
+## JUnit 5 integration
+
+<Steps>
+  <Step title="Register the extension">
+    Add `@ExtendWith(VideoRecorderExtension.class)` to your test class:
+
+    ```java
+    @ExtendWith(VideoRecorderExtension.class)
+    class MyTest {
+      ...
+    }
+    ```
+  </Step>
+  <Step title="Annotate tests to record">
+    Mark individual test methods with `@Video`:
+
+    ```java
+    @ExtendWith(VideoRecorderExtension.class)
+    class MyTest {
+
+      @Test
+      @Video
+      void flakyScenario() {
+        open("https://example.com");
+        // ...
+      }
+    }
+    ```
+
+    Tests without `@Video` are not recorded.
+  </Step>
+  <Step title="Access the recorded file (optional)">
+    Retrieve a reference to the video file from within the same test or an `@AfterEach` method:
+
+    ```java
+    @AfterEach
+    void checkVideo() {
+      Optional<Path> videoFile = VideoRecorderExtension.getRecordedVideo();
+      // videoFile is empty when the test passed (default behaviour)
+    }
+    ```
+  </Step>
+</Steps>
+
+## TestNG integration
+
+<Steps>
+  <Step title="Register the listener">
+    Add `@Listeners(VideoRecorderListener.class)` to your test class:
+
+    ```java
+    @Listeners(VideoRecorderListener.class)
+    public class MyTest {
+      ...
+    }
+    ```
+  </Step>
+  <Step title="Annotate tests to record">
+    Mark individual test methods with `@Video`:
+
+    ```java
+    @Listeners(VideoRecorderListener.class)
+    public class MyTest {
+
+      @Test
+      @Video
+      public void flakyScenario() {
+        open("https://example.com");
+        // ...
+      }
+    }
+    ```
+  </Step>
+  <Step title="Access the recorded file (optional)">
+    ```java
+    Optional<Path> videoFile = VideoRecorderListener.getRecordedVideo();
+    ```
+  </Step>
+</Steps>
+
+## Other testing frameworks
+
+If you use a framework other than JUnit 5 or TestNG, control the recorder directly:
+
+```java
+// Before the test
+VideoRecorder videoRecorder = new VideoRecorder();
+videoRecorder.start();
+
+// Your test steps
+// ...
+
+// After the test
+videoRecorder.finish();
+```
+
+## Video output
+
+By default, videos are saved to `build/reports/tests/`. When a recorded test fails, Selenide appends the video path to the error message:
+
+```
+Element should have text "Oreshnik"
+Actual value: text="Kokoshnik"
+
+Screenshot: file:/.../build/reports/tests/1732761758509.0.png
+Page source: file:/.../build/reports/tests/1732761758509.0.html
+Video: file:/.../build/reports/tests/1732761754743.0.mp4
+```
+
+The video path is also printed to console in a format understood by GitLab CI and Jenkins, which automatically attach it to the build results:
+
+```
+[[ATTACHMENT|/projects/my-project/build/reports/tests/1746735811373.0.mp4]]
+```
+
+<Note>
+  By default, videos are saved only for **failed** tests. Passing tests do not produce a video file.
+</Note>
+
+## Configuration
+
+All parameters can be set in `src/test/resources/selenide.properties`.
+
+### Record all tests
+
+To record every test without adding `@Video` to each one:
+
+```properties
+selenide.video.mode=ALL
+```
+
+To skip recording for specific tests when `mode=ALL`, annotate them with `@NoVideo`.
+
+### Save mode
+
+By default only failed tests keep their video. To save videos for all tests:
+
+```properties
+selenide.video.saveMode=ALL
+```
+
+### Output folder
+
+```properties
+selenide.video.folder=build/reports/tests
+```
+
+### Frames per second
+
+```properties
+selenide.video.fps=12
+```
+
+### Video quality (CRF)
+
+CRF ranges from 0 (lossless) to 51 (lowest quality). Lower values produce larger, higher-quality files.
+
+```properties
+selenide.video.crf=28
+```
+
+### Processing timeout
+
+Maximum time (in milliseconds) to wait for FFmpeg to assemble the video. Default is 5 minutes.
+
+```properties
+selenide.video.videoProcessingTimeout=300000
+```
+
+## Troubleshooting
+
+### Video file is rejected or appears corrupt
+
+FFmpeg requires video dimensions to be divisible by 2. If your browser window has an odd width or height (e.g. 801×601), FFmpeg will fail to create a valid MP4.
+
+Set an even browser size in your test setup:
+
+```java
+Configuration.browserSize = "1280x800";
+```
+
+Or configure it programmatically:
+
+```java
+open(config().browserSize("1280x800"));
+```
+
+### No video produced for a passing test
+
+This is expected behaviour. Videos are saved only for failed tests by default. Set `selenide.video.saveMode=ALL` in `selenide.properties` to save videos regardless of test outcome.

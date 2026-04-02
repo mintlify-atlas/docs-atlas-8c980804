@@ -1,0 +1,147 @@
+---
+title: "Proxy"
+description: "Built-in proxy server for network interception and file downloads"
+---
+
+Selenide includes an embedded HTTP proxy server powered by [BrowserUp Proxy](https://github.com/browserup/browserup-proxy). When enabled, the proxy sits between the browser and the network, letting you intercept requests, modify responses, and reliably download files.
+
+## Enable the proxy
+
+Set `Configuration.proxyEnabled = true` before opening a browser. Selenide starts the proxy automatically and configures the WebDriver to route traffic through it.
+
+```java
+Configuration.proxyEnabled = true;
+```
+
+<Note>
+  The proxy must be enabled before `open()` is called. Changing `proxyEnabled` after the browser is already open has no effect until the driver is restarted.
+</Note>
+
+### Proxy host and port
+
+By default, Selenide selects a free port and resolves the hostname automatically. Override these if your environment requires a specific address:
+
+```java
+Configuration.proxyHost = "192.168.1.10";
+Configuration.proxyPort = 8888;
+```
+
+Leave `proxyHost` empty to let Selenide detect the correct network interface.
+
+## Accessing the proxy server
+
+`SelenideProxyServer` is the handle to the running proxy. Retrieve it from the current driver context:
+
+```java
+SelenideProxyServer proxy = WebDriverRunner.getSelenideProxy();
+```
+
+## Adding request and response filters
+
+Filters let you inspect or modify traffic in real time. Each filter must be registered with a unique name.
+
+### Request filter
+
+A request filter can examine or block outgoing requests:
+
+```java
+proxy.addRequestFilter("my-request-logger", (request, contents, messageInfo) -> {
+  System.out.println("Request: " + messageInfo.getUrl());
+  return null; // returning null passes the request through unchanged
+});
+```
+
+### Response filter
+
+A response filter can examine or modify server responses before they reach the browser:
+
+```java
+proxy.addResponseFilter("my-response-logger", (response, contents, messageInfo) -> {
+  System.out.println("Response status: " + response.getStatus());
+});
+```
+
+<Warning>
+  Built-in Selenide filters (prefixed with `selenide.proxy.filter.`) cannot be removed. Attempting to do so throws a `RuntimeException`.
+</Warning>
+
+## Mocking responses
+
+The built-in `MockResponseFilter` (accessible via `proxy.responseMocker()`) lets you substitute a real server response with a controlled one. This is useful for testing error states or unstable endpoints.
+
+```java
+MockResponseFilter mocker = proxy.responseMocker();
+
+mocker.mockText(
+  "mock-api",
+  urlStartsWith(GET, "https://example.com/api/"),
+  () -> "{\"status\": \"mocked\"}"
+);
+
+// Reset one mock when it's no longer needed
+mocker.reset("mock-api");
+
+// Or reset all mocks at once
+mocker.resetAll();
+```
+
+Use `RequestMatchers` to build the matching criteria:
+
+```java
+import static com.codeborne.selenide.proxy.RequestMatchers.*;
+import static com.codeborne.selenide.proxy.RequestMatcher.HttpMethod.*;
+
+urlEquals(GET, "https://example.com/api/users")
+urlStartsWith(POST, "https://example.com/api/")
+urlContains(GET, "/search")
+urlMatches(GET, "https://example\\.com/.*")
+```
+
+## Removing filters
+
+Remove a specific filter by name after a test to avoid interference with subsequent tests:
+
+```java
+proxy.removeRequestFilter("my-request-logger");
+proxy.removeResponseFilter("my-response-logger");
+```
+
+Remove all custom filters at once (built-in Selenide filters are preserved):
+
+```java
+proxy.cleanupFilters();
+```
+
+<Tip>
+  Call `proxy.cleanupFilters()` in an `@AfterEach` method to keep each test isolated from leftover filters.
+</Tip>
+
+## File downloads with PROXY mode
+
+The proxy enables the most reliable file download method. Use `PROXY` download mode to capture files that are served via HTTP redirects, `Content-Disposition` headers, or dynamic URLs that are hard to predict:
+
+```java
+Configuration.proxyEnabled = true;
+
+File report = $("a#download-report").download(using(PROXY));
+```
+
+<Note>
+  `PROXY` download mode requires `Configuration.proxyEnabled = true`. It does not work when the browser is remote (e.g. Selenium Grid) unless the proxy is reachable from the remote node.
+</Note>
+
+### Comparison of download modes
+
+| Mode       | How it works                                   | When to use                              |
+| ---------- | ---------------------------------------------- | ---------------------------------------- |
+| `HTTPGET`  | Re-fetches the URL with an HTTP GET request    | Simple, direct download URLs             |
+| `FOLDER`   | Monitors the browser's download folder         | Files saved to disk by the browser       |
+| `CDP`      | Uses Chrome DevTools Protocol                  | Chrome/Edge with CDP access              |
+| `PROXY`    | Intercepts the response via the built-in proxy | Redirects, dynamic URLs, any HTTP method |
+
+## Use cases
+
+- **Intercepting requests** — log, assert, or block outgoing API calls during a test.
+- **Mocking responses** — return controlled responses without a live backend.
+- **Capturing traffic** — record request/response pairs for debugging.
+- **Reliable file downloads** — capture files served over HTTP without relying on the filesystem.

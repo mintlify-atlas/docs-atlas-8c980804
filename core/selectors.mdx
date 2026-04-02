@@ -1,0 +1,343 @@
+---
+title: "Selectors"
+description: "Built-in and custom selectors for finding elements"
+---
+
+Selenide wraps Selenium's `By` with a richer set of selectors. You can use any standard Selenium `By` directly, or use the helpers in `Selectors` for text-based and attribute-based lookups.
+
+```java
+import static com.codeborne.selenide.Selectors.*;
+import static com.codeborne.selenide.Selenide.$;
+import static com.codeborne.selenide.Selenide.$$;
+```
+
+---
+
+## Standard selectors
+
+Selenide's `$` and `$$` accept any Selenium `By` or a raw CSS string:
+
+```java
+// CSS selector (shorthand)
+$(".submit-button");
+$$("ul.menu li");
+
+// Standard Selenium By
+$(By.id("username"));
+$(By.xpath("//button[@type='submit']"));
+$(By.className("active"));
+$(By.tagName("input"));
+$(By.name("email"));
+$(By.linkText("Sign in"));
+$(By.partialLinkText("Sign"));
+```
+
+---
+
+## Text-based selectors
+
+Use these when you need to find elements by their visible text rather than by a CSS or XPath expression.
+
+<AccordionGroup>
+  <Accordion title="withText(String elementText)">
+    Finds an element whose text **contains** the given string (substring match). Ignores differences between space, `\n`, `\r`, `\t`, and `&nbsp;`. Ignores multiple spaces.
+
+    ```java
+    public static By withText(String elementText)
+    ```
+
+    ```java
+    $(withText("Sign")).click();
+    ```
+  </Accordion>
+  <Accordion title="byText(String elementText)">
+    Finds an element whose text **equals** the given string (full match). Ignores whitespace differences. Case-sensitive.
+
+    ```java
+    public static By byText(String elementText)
+    ```
+
+    ```java
+    $(byText("Sign in")).click();
+    ```
+  </Accordion>
+  <Accordion title="withTagAndText(String tag, String elementText)">
+    Finds an element with the given tag whose text **contains** the given string.
+
+    ```java
+    public static By withTagAndText(String tag, String elementText)
+    ```
+
+    ```java
+    $(withTagAndText("button", "Submit")).click();
+    $(withTagAndText("span", "error")).shouldBe(visible);
+    ```
+  </Accordion>
+  <Accordion title="byTagAndText(String tag, String elementText)">
+    Finds an element with the given tag whose text **equals** the given string (full match). Case-sensitive.
+
+    ```java
+    public static By byTagAndText(String tag, String elementText)
+    ```
+
+    ```java
+    $(byTagAndText("button", "Submit")).click();
+    ```
+  </Accordion>
+  <Accordion title="withTextCaseInsensitive(String elementText)">
+    Like `withText`, but case-insensitive. Available since 5.22.0.
+
+    ```java
+    public static By withTextCaseInsensitive(String elementText)
+    ```
+
+    ```java
+    $(withTextCaseInsensitive("sign in")).click();
+    ```
+  </Accordion>
+  <Accordion title="byTextCaseInsensitive(String elementText)">
+    Like `byText`, but case-insensitive. Available since 5.22.0.
+
+    ```java
+    public static By byTextCaseInsensitive(String elementText)
+    ```
+
+    ```java
+    $(byTextCaseInsensitive("SIGN IN")).click();
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Attribute-based selectors
+
+<AccordionGroup>
+  <Accordion title="byAttribute(String attributeName, String attributeValue)">
+    Finds elements by exact attribute value. Equivalent to `[attr='value']` in CSS.
+
+    Also supports CSS attribute selector modifiers by appending a symbol to the attribute name:
+
+    | Suffix | Meaning | Example |
+    |---|---|---|
+    | _(none)_ | Exact match | `byAttribute("type", "submit")` |
+    | `*` | Contains | `byAttribute("class*", "btn")` |
+    | `^` | Starts with | `byAttribute("id^", "user-")` |
+    | `$` | Ends with | `byAttribute("id$", "-form")` |
+    | `~` | Contains word | `byAttribute("class~", "active")` |
+
+    ```java
+    public static By byAttribute(String attributeName, String attributeValue)
+    ```
+
+    ```java
+    $(byAttribute("data-test-id", "submit-btn")).click();
+    $(byAttribute("class*", "error")).shouldBe(visible);
+    ```
+
+    <Note>
+      Attribute names containing dashes (e.g. `data-mail-id`) may not work correctly with this selector. Use `By.cssSelector("[data-mail-id='123']")` in those cases.
+    </Note>
+  </Accordion>
+  <Accordion title="byValue(String value)">
+    Finds input elements by their `value` attribute.
+
+    ```java
+    public static By byValue(String value)
+    ```
+
+    ```java
+    $(byValue("Submit")).click();
+    ```
+  </Accordion>
+  <Accordion title="byTitle(String title)">
+    Finds elements by their `title` attribute.
+
+    ```java
+    public static By byTitle(String title)
+    public static By byTitle(String title, TextMatchOptions options)
+    ```
+
+    ```java
+    $(byTitle("Close dialog")).click();
+    ```
+  </Accordion>
+  <Accordion title="byAltText(String altText)">
+    Finds elements by their `alt` attribute. Available since 7.12.0.
+
+    ```java
+    public static By byAltText(String altText)
+    public static By byAltText(String altText, TextMatchOptions options)
+    ```
+
+    ```java
+    $(byAltText("Company logo")).shouldBe(visible);
+    ```
+  </Accordion>
+  <Accordion title="byPlaceholder(String placeholderText)">
+    Finds elements by their `placeholder` attribute. Available since 7.12.0.
+
+    ```java
+    public static By byPlaceholder(String placeholderText)
+    public static By byPlaceholder(String placeholderText, TextMatchOptions options)
+    ```
+
+    ```java
+    $(byPlaceholder("Enter your email")).setValue("user@example.com");
+    ```
+  </Accordion>
+  <Accordion title="byTestId(String testId)">
+    Finds elements by `data-test-id` attribute (configurable). Available since 7.12.0.
+
+    The attribute name defaults to `data-test-id` and can be overridden via:
+    - System property: `-Dselenide.test-id.attribute=data-testid`
+    - Properties file: `selenide.test-id.attribute=data-testid`
+
+    ```java
+    public static By byTestId(String testId)
+    ```
+
+    ```java
+    $(byTestId("submit-button")).click();
+    ```
+  </Accordion>
+  <Accordion title="byLabel(String labelText)">
+    Finds an input element associated with the `<label>` that has the given text (full text match).
+
+    ```java
+    public static By byLabel(String elementText)
+    public static By byLabel(String elementText, TextMatchOptions options)
+    ```
+
+    ```java
+    $(byLabel("Email address")).setValue("user@example.com");
+    $(byLabel("Remember me")).shouldBe(visible);
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Shadow DOM selectors
+
+<AccordionGroup>
+  <Accordion title="shadowCss(String target, String... shadowHostsChain)">
+    Finds an element inside one or more shadow roots by following a chain of shadow hosts.
+
+    ```java
+    public static By shadowCss(String target, String... shadowHostsChain)
+    ```
+
+    Pass the CSS selectors for each shadow host in order, then the target CSS selector as the first argument.
+
+    ```java
+    // Find .submit-button inside the shadow root of #my-component
+    $(shadowCss(".submit-button", "#my-component")).click();
+
+    // Nested shadow roots
+    $(shadowCss(".inner-btn", "#outer-host", "#inner-host")).click();
+    ```
+  </Accordion>
+  <Accordion title="shadowDeepCss(String target)">
+    Finds an element using a deep shadow DOM CSS selector (pierces all shadow roots). Available since 6.8.0.
+
+    ```java
+    public static By shadowDeepCss(String target)
+    ```
+
+    ```java
+    $(shadowDeepCss(".submit-button")).click();
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Standard Selenium aliases
+
+These are thin aliases over `By.*` methods, available for import consistency:
+
+| Selenide method | Equivalent Selenium |
+|---|---|
+| `byId(String id)` | `By.id(id)` |
+| `byCssSelector(String css)` | `By.cssSelector(css)` |
+| `byXpath(String xpath)` | `By.xpath(xpath)` |
+| `byName(String name)` | `By.name(name)` |
+| `byLinkText(String linkText)` | `By.linkText(linkText)` |
+| `byPartialLinkText(String text)` | `By.partialLinkText(text)` |
+| `byClassName(String className)` | `By.className(className)` |
+| `byTagName(String tagName)` | `By.tagName(tagName)` |
+
+```java
+$(byId("username")).setValue("admin");
+$(byCssSelector(".btn-primary")).click();
+$(byXpath("//table/tr[1]/td[2]")).shouldHave(text("Alice"));
+```
+
+---
+
+## TextMatchOptions
+
+Several selectors accept a `TextMatchOptions` parameter to control matching behavior:
+
+```java
+import static com.codeborne.selenide.TextMatchOptions.*;
+
+// Full text match (default for byText, byLabel)
+byLabel("Email", fullText())
+
+// Partial text match (default for withText)
+byLabel("Email", partialText())
+
+// Case-insensitive
+byLabel("Email", fullText().caseInsensitive())
+byTitle("close", partialText().caseInsensitive())
+```
+
+---
+
+## Choosing a selector
+
+<CardGroup cols={2}>
+  <Card title="Use CSS first" icon="hash">
+    CSS selectors are fast, readable, and well-supported. Prefer `.class`, `#id`, and `[attr=value]` over text-based selectors when the element has a stable identifier.
+  </Card>
+  <Card title="Use text selectors for UX testing" icon="text">
+    `byText`, `withText`, and `byLabel` are useful when you want to assert what the user sees rather than rely on internal identifiers.
+  </Card>
+  <Card title="Use data-test-id for stability" icon="tag">
+    Add `data-test-id` attributes to elements under test and use `byTestId`. This decouples tests from CSS class names and layout changes.
+  </Card>
+  <Card title="Use Shadow DOM selectors for web components" icon="layers">
+    Use `shadowCss` when targeting elements inside shadow roots. Use `shadowDeepCss` to pierce all shadow roots in one query.
+  </Card>
+</CardGroup>
+
+---
+
+## Complete example
+
+```java
+import static com.codeborne.selenide.Selectors.*;
+import static com.codeborne.selenide.Selenide.$;
+import static com.codeborne.selenide.Selenide.$$;
+import static com.codeborne.selenide.Condition.*;
+
+// Find by text
+$(byText("Sign in")).click();
+
+// Find input by its label
+$(byLabel("Email address")).setValue("user@example.com");
+
+// Find by attribute
+$(byAttribute("data-role", "submit")).click();
+
+// Find by test ID
+$(byTestId("confirm-dialog")).shouldBe(visible);
+
+// Navigate a shadow DOM
+$(shadowCss(".submit-btn", "#checkout-widget")).click();
+
+// Filter a collection using a text selector
+$$(byTagAndText("option", "Canada")).shouldHave(CollectionCondition.size(1));
+```

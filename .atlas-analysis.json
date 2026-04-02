@@ -1,0 +1,113 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "Selenide",
+  "projectDescription": "A Java UI testing framework built on top of Selenium WebDriver that provides a concise fluent API, natural-language assertions, and automatic waiting for AJAX-based web applications.",
+  "theme": "palm",
+  "primaryColor": "#0595f8",
+  "lightColor": "#a104a0",
+  "darkColor": "#f1a83e",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core API",
+            "pages": [
+              "core/elements",
+              "core/collections",
+              "core/conditions",
+              "core/selectors",
+              "core/actions"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/overview",
+              "configuration/browser",
+              "configuration/timeouts-and-assertions"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "advanced/file-downloads",
+              "advanced/page-objects",
+              "advanced/javascript-and-shadow-dom",
+              "advanced/screenshots-and-reports"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Modules",
+        "groups": [
+          {
+            "group": "Test Runners",
+            "pages": [
+              "modules/junit5",
+              "modules/junit4",
+              "modules/testng"
+            ]
+          },
+          {
+            "group": "Remote & Grid",
+            "pages": [
+              "modules/selenoid",
+              "modules/grid",
+              "modules/moon"
+            ]
+          },
+          {
+            "group": "Extensions",
+            "pages": [
+              "modules/appium",
+              "modules/proxy",
+              "modules/video-recorder"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Concise fluent API wrapping Selenium WebDriver",
+    "Automatic waiting and retry for AJAX/dynamic elements",
+    "Natural-language assertions (shouldBe, shouldHave, shouldNot)",
+    "Rich element conditions: text, attribute, CSS class, visibility, and more",
+    "Collection assertions for lists of elements",
+    "Built-in file download support (HTTP, CDP, proxy modes)",
+    "Page Object support with SelenidePageFactory",
+    "Shadow DOM and iframe traversal",
+    "Automatic screenshots on test failure",
+    "Plugin system for Appium, Selenoid, Grid, and video recording"
+  ],
+  "publicApiSurface": [
+    "com.codeborne.selenide.Selenide.$()",
+    "com.codeborne.selenide.Selenide.$$()",
+    "com.codeborne.selenide.Selenide.open()",
+    "com.codeborne.selenide.Selenide.page()",
+    "com.codeborne.selenide.SelenideElement.shouldBe()",
+    "com.codeborne.selenide.SelenideElement.shouldHave()",
+    "com.codeborne.selenide.SelenideElement.shouldNot()",
+    "com.codeborne.selenide.SelenideElement.setValue()",
+    "com.codeborne.selenide.SelenideElement.click()",
+    "com.codeborne.selenide.SelenideElement.download()",
+    "com.codeborne.selenide.ElementsCollection.shouldHave(CollectionCondition)",
+    "com.codeborne.selenide.Condition (visible, text, attribute, cssClass, ...)",
+    "com.codeborne.selenide.CollectionCondition (size, texts, exactTexts, ...)",
+    "com.codeborne.selenide.Selectors (byText, withText, byAttribute, byShadowCss, ...)",
+    "com.codeborne.selenide.Configuration (browser, baseUrl, timeout, ...)",
+    "com.codeborne.selenide.SelenideConfig",
+    "com.codeborne.selenide.SelenideDriver"
+  ]
+}

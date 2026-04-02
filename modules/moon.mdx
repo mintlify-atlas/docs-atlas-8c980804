@@ -1,0 +1,125 @@
+---
+title: "Moon"
+description: "Running Selenide tests with Moon cloud browser platform"
+---
+
+## What is Moon?
+
+[Moon](https://aerokube.com/moon/) is Aerokube's cloud-native browser platform. It runs browsers as ephemeral pods in Kubernetes and provides a fully compatible WebDriver endpoint. Moon is the actively maintained successor to [Selenoid](/modules/selenoid) and is Aerokube's recommended platform for running browsers at scale.
+
+Most Selenide features work with Moon out of the box. The `selenide-moon` plugin adds support for capabilities that require access to the browser container: file downloads, clipboard, and BasicAuth.
+
+## Add the dependency
+
+<CodeGroup>
+
+```xml Maven (pom.xml)
+<dependency>
+  <groupId>com.codeborne</groupId>
+  <artifactId>selenide-moon</artifactId>
+  <version>7.15.1</version>
+  <scope>test</scope>
+</dependency>
+```
+
+```groovy Gradle (build.gradle)
+testImplementation 'com.codeborne:selenide-moon:7.15.1'
+```
+
+</CodeGroup>
+
+## Connect to Moon
+
+Set `Configuration.remote` to your Moon endpoint:
+
+```java
+Configuration.remote = "http://moon:4444/wd/hub";
+```
+
+<Tip>
+  Replace `moon` with the hostname or service name of your Moon instance. Refer to the [Moon documentation](https://aerokube.com/moon/) for cluster setup and endpoint configuration.
+</Tip>
+
+## Features
+
+### File downloads
+
+When the browser runs inside a Moon pod, downloaded files are not accessible from the test machine. The plugin retrieves them using the [Moon API](https://aerokube.com/moon/latest/#accessing-downloaded-files).
+
+```java
+File report = $("a#report").download(file().withMethod(FOLDER));
+```
+
+All four download methods are supported: `FOLDER`, `CDP`, `HTTPGET`, and `PROXY`.
+
+<Note>
+  `HTTPGET` and `PROXY` download directly over the network and do not require the plugin. `FOLDER` and `CDP` require it to access the pod's filesystem.
+</Note>
+
+### Clipboard access
+
+Read and write the clipboard inside the Moon container:
+
+```java
+clipboard().setText("Moonlight Shadow");
+clipboard().shouldHave(content("Moonlight Shadow"));
+```
+
+### BasicAuth
+
+The plugin includes built-in support for HTTP BasicAuth, so you can test pages behind authentication without extra configuration.
+
+## How it works
+
+When you call `$("a#report").download()`, the plugin:
+
+<Steps>
+  <Step title="Clicks the element">
+    Triggers the download by clicking the link or button.
+  </Step>
+  <Step title="Waits for the browser to download">
+    Lets the browser save the file to its default download location inside the Moon pod.
+  </Step>
+  <Step title="Fetches the file via the Moon API">
+    Retrieves the file from the pod using the Moon file-access API and returns it to your test.
+  </Step>
+</Steps>
+
+## Why Moon over Selenoid?
+
+<CardGroup cols={2}>
+  <Card title="Actively maintained" icon="circle-check">
+    Moon is under active development. Selenoid is no longer maintained.
+  </Card>
+  <Card title="Kubernetes-native" icon="cloud">
+    Moon runs browsers as native Kubernetes pods, making it suitable for cloud-scale testing infrastructure.
+  </Card>
+  <Card title="Same feature set" icon="copy">
+    Moon supports everything Selenoid did: file downloads, clipboard, and BasicAuth.
+  </Card>
+  <Card title="Drop-in migration" icon="arrow-right-arrow-left">
+    Update the dependency from `selenide-selenoid` to `selenide-moon` and point `Configuration.remote` to Moon. Your test code stays the same.
+  </Card>
+</CardGroup>
+
+## Migrating from Selenoid
+
+<Steps>
+  <Step title="Replace the dependency">
+    Remove `com.codeborne:selenide-selenoid` and add `com.codeborne:selenide-moon`.
+  </Step>
+  <Step title="Update the remote URL">
+    Change `Configuration.remote` to point to your Moon instance instead of Selenoid.
+
+    ```java
+    // Before
+    Configuration.remote = "http://selenoid:4444/wd/hub";
+
+    // After
+    Configuration.remote = "http://moon:4444/wd/hub";
+    ```
+  </Step>
+  <Step title="Keep your test code">
+    All `download()`, `clipboard()`, and BasicAuth calls remain unchanged.
+  </Step>
+</Steps>

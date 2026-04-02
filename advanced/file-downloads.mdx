@@ -1,0 +1,176 @@
+---
+title: "File downloads"
+description: "Downloading files in Selenide tests"
+---
+
+Selenide provides a `download()` method on any `SelenideElement` that triggers a file download by clicking the element and returns the downloaded `File`.
+
+```java
+File file = $("#download-link").download();
+```
+
+The download strategy is controlled by `Configuration.fileDownload` (default: `HTTPGET`) or can be set per call using `DownloadOptions`.
+
+## Download modes
+
+Selenide supports four download strategies, each suited to different scenarios.
+
+<Tabs>
+  <Tab title="HTTPGET">
+    The default mode. Selenide extracts the `href` attribute from the link element and sends a GET request using the current browser session's cookies.
+
+    ```java
+    import static com.codeborne.selenide.DownloadOptions.using;
+    import static com.codeborne.selenide.FileDownloadMode.HTTPGET;
+
+    File file = $("#download-link").download(using(HTTPGET));
+    ```
+
+    <Note>
+      `HTTPGET` only works for `<a href="...">` elements. It does not support form submissions, JavaScript-triggered downloads, or POST requests.
+    </Note>
+  </Tab>
+  <Tab title="CDP">
+    Uses Chrome DevTools Protocol to intercept the download. Works for any element type and does not require a proxy.
+
+    ```java
+    import static com.codeborne.selenide.DownloadOptions.using;
+    import static com.codeborne.selenide.FileDownloadMode.CDP;
+
+    File file = $("button#export").download(using(CDP));
+    ```
+
+    <Warning>
+      `CDP` works only with Chromium-based browsers (Chrome, Edge). It is not supported in Firefox or Safari.
+    </Warning>
+  </Tab>
+  <Tab title="PROXY">
+    Routes all browser traffic through Selenide's built-in proxy server to intercept the download. Works for any element type including buttons and form submissions.
+
+    ```java
+    import static com.codeborne.selenide.DownloadOptions.using;
+    import static com.codeborne.selenide.FileDownloadMode.PROXY;
+
+    File file = $("button#export").download(using(PROXY));
+    ```
+
+    <Warning>
+      `PROXY` requires the Selenide proxy to be enabled: set `Configuration.proxyEnabled = true` before opening the browser. It does not work with a custom WebDriver instance that bypasses the Selenide proxy.
+    </Warning>
+  </Tab>
+  <Tab title="FOLDER">
+    Watches the browser's download directory for a new file to appear. Works for any element type.
+
+    ```java
+    import static com.codeborne.selenide.DownloadOptions.using;
+    import static com.codeborne.selenide.FileDownloadMode.FOLDER;
+
+    File file = $("button#export").download(using(FOLDER));
+    ```
+
+    <Tip>
+      Use `FOLDER` as a fallback when other modes are unavailable. It is generally slower than `HTTPGET` or `CDP` because it polls the filesystem.
+    </Tip>
+  </Tab>
+</Tabs>
+
+## Setting the default mode
+
+You can set the default download mode for all tests in your configuration:
+
+```java
+import com.codeborne.selenide.Configuration;
+import com.codeborne.selenide.FileDownloadMode;
+
+Configuration.fileDownload = FileDownloadMode.CDP;
+```
+
+## DownloadOptions
+
+`DownloadOptions` lets you customise the download per call using a fluent API. Start with `using(mode)` or `file()` and chain options.
+
+### Timeout
+
+Override the default download timeout for a single call:
+
+```java
+import java.time.Duration;
+import static com.codeborne.selenide.DownloadOptions.using;
+import static com.codeborne.selenide.FileDownloadMode.HTTPGET;
+
+File file = $("#link").download(
+    using(HTTPGET).withTimeout(Duration.ofSeconds(30))
+);
+```
+
+### Increment timeout
+
+For the `FOLDER` mode, set an increment timeout to fail fast when no download activity is detected within a shorter window:
+
+```java
+File file = $("button").download(
+    using(FOLDER)
+        .withTimeout(Duration.ofMinutes(2))
+        .withIncrementTimeout(Duration.ofSeconds(10))
+);
+```
+
+If no change is detected in the downloads folder for 10 seconds, the download fails immediately rather than waiting the full two minutes.
+
+## File filters
+
+Use file filters to identify which downloaded file to return when multiple files may be present.
+
+<CodeGroup>
+
+```java By exact name
+import static com.codeborne.selenide.DownloadOptions.using;
+import static com.codeborne.selenide.FileDownloadMode.HTTPGET;
+
+File file = $("#link").download(
+    using(HTTPGET).withName("report.pdf")
+);
+```
+
+```java By extension
+File file = $("#link").download(
+    using(HTTPGET).withExtension("pdf")
+);
+```
+
+```java By name pattern (regex)
+File file = $("#link").download(
+    using(HTTPGET).withNameMatching("report-\\d{4}-\\d{2}-\\d{2}\\.pdf")
+);
+```
+
+</CodeGroup>
+
+You can also use `FileFilters` directly:
+
+```java
+import com.codeborne.selenide.files.FileFilters;
+
+File file = $("#link").download(FileFilters.withExtension("csv"));
+```
+
+## Downloads folder
+
+Downloaded files are saved to the folder defined by `Configuration.downloadsFolder` (default: `"build/downloads"`).
+
+```java
+Configuration.downloadsFolder = "target/downloads";
+```
+
+Each test thread uses an isolated subdirectory to prevent cross-test interference.
+
+## Remote browsers
+
+When running tests against a remote browser (Selenoid, Selenium Grid), file downloads require additional setup:
+
+- **Selenoid**: Use the `FOLDER` mode and configure Selenoid's VNC/download capabilities. See the [Selenoid module](/modules/selenoid) for details.
+- **Selenium Grid**: Use `PROXY` mode or `CDP` mode (Chrome nodes only). See the [Grid module](/modules/grid) for details.
+
+<Note>
+  `HTTPGET` downloads the file to the machine running the test (not the remote node), so it works transparently with remote browsers as long as the server is reachable from the test runner.
+</Note>

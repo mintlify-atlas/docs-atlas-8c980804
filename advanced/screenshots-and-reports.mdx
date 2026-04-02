@@ -1,0 +1,169 @@
+---
+title: "Screenshots and reports"
+description: "Automatic screenshots, page sources, and test reporting"
+---
+
+Selenide captures a screenshot and saves the HTML page source automatically whenever a test fails. This section explains how automatic capture works, how to take screenshots manually, and how to integrate with popular reporting tools.
+
+## Automatic screenshots on failure
+
+Selenide takes a screenshot on every test failure by default. No additional setup is required.
+
+| Setting | Default | Description |
+|---|---|---|
+| `Configuration.screenshots` | `true` | Capture a PNG screenshot on failure |
+| `Configuration.savePageSource` | `true` | Save the full page HTML on failure |
+| `Configuration.reportsFolder` | `"build/reports/tests"` | Directory where screenshots and HTML files are written |
+
+```java
+import com.codeborne.selenide.Configuration;
+
+// Disable automatic screenshots (not recommended)
+Configuration.screenshots = false;
+
+// Disable page source saving
+Configuration.savePageSource = false;
+
+// Change the output directory
+Configuration.reportsFolder = "target/selenide-reports";
+```
+
+<Tip>
+  Keep both `screenshots` and `savePageSource` enabled. The HTML source is often more useful than the screenshot for diagnosing layout or JavaScript issues.
+</Tip>
+
+## Linking reports in CI
+
+When tests run on a CI server, Selenide can include a clickable URL to each screenshot in the error message instead of a local file path. Set `Configuration.reportsUrl` to the base URL at which your CI artifacts are published:
+
+```java
+Configuration.reportsUrl = "https://ci.example.com/job/my-tests/artifacts/";
+```
+
+Selenide appends the relative screenshot path to this base URL. The result appears in the failure message so engineers can open the screenshot directly from the test output.
+
+## Taking screenshots manually
+
+### By name
+
+Save a screenshot to `reportsFolder` under a given name:
+
+```java
+import static com.codeborne.selenide.Selenide.screenshot;
+
+// Saves "reportsFolder/checkout-step-2.png" and optionally ".html"
+String path = screenshot("checkout-step-2");
+```
+
+The method returns the URL or absolute path to the saved file.
+
+### By output type
+
+Use `OutputType` to get the screenshot as a `File`, `byte[]`, or Base64 string without saving to disk:
+
+```java
+import org.openqa.selenium.OutputType;
+import static com.codeborne.selenide.Selenide.screenshot;
+
+// Temporary File
+File file = screenshot(OutputType.FILE);
+
+// Raw bytes — useful for embedding in a report
+byte[] bytes = screenshot(OutputType.BYTES);
+
+// Base64 — useful for embedding in HTML
+String base64 = screenshot(OutputType.BASE64);
+```
+
+### Element screenshot
+
+Capture only a specific element rather than the full page:
+
+```java
+// Returns a File with the element's screenshot
+File elementShot = $(".product-card").screenshot();
+
+// Returns a BufferedImage
+java.awt.image.BufferedImage img = $(".product-card").screenshotAsImage();
+```
+
+<Note>
+  `screenshot()` on an element crops the full-page screenshot to the element's bounding box. The element must be visible and in the viewport.
+</Note>
+
+## Integrating with Allure Reports
+
+[Allure](https://allurereport.org/docs/) produces rich HTML reports with steps, attachments, and timelines. Selenide integrates with Allure automatically when you add the Allure Selenide adapter to your project.
+
+<Steps>
+  <Step title="Add the Allure Selenide dependency">
+    <Tabs>
+      <Tab title="Maven">
+        ```xml
+        <dependency>
+            <groupId>io.qameta.allure</groupId>
+            <artifactId>allure-selenide</artifactId>
+            <version>2.x.x</version>
+            <scope>test</scope>
+        </dependency>
+        ```
+      </Tab>
+      <Tab title="Gradle">
+        ```groovy
+        testImplementation "io.qameta.allure:allure-selenide:2.x.x"
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+  <Step title="Enable the Allure listener">
+    Register `AllureSelenide` as a Selenide listener in your test setup. A common place is a `@BeforeAll` method or a JUnit 5 extension.
+
+    ```java
+    import com.codeborne.selenide.logevents.SelenideLogger;
+    import io.qameta.allure.selenide.AllureSelenide;
+
+    SelenideLogger.addListener("allure", new AllureSelenide());
+    ```
+
+    By default, `AllureSelenide` attaches a screenshot to the Allure report on every step failure. You can configure it to attach on every step or only on failures:
+
+    ```java
+    SelenideLogger.addListener("allure", new AllureSelenide()
+        .screenshots(true)
+        .savePageSource(true)
+    );
+    ```
+  </Step>
+  <Step title="Annotate tests with @Step (optional)">
+    Use Allure's `@Step` annotation to label test methods in the report:
+
+    ```java
+    import io.qameta.allure.Step;
+
+    @Step("Log in as {username}")
+    public void loginAs(String username, String password) {
+        $("#username").setValue(username);
+        $("#password").setValue(password);
+        $("[type=submit]").click();
+    }
+    ```
+
+    Each `@Step` method appears as a named step in the Allure timeline, with its screenshot attached if a failure occurred.
+  </Step>
+</Steps>
+
+For full Allure configuration and report generation, see the [Allure documentation](https://allurereport.org/docs/).
+
+## Integrating with JUnit 5
+
+The Selenide JUnit 5 module provides a `@ExtendWith(ScreenShooterExtension.class)` extension that saves a screenshot after every test method — not only on failure. See the [JUnit 5 module](/modules/junit5) page for setup instructions.
+
+```java
+import com.codeborne.selenide.junit5.ScreenShooterExtension;
+import org.junit.jupiter.api.extension.ExtendWith;
+
+@ExtendWith(ScreenShooterExtension.class)
+class MyTest {
+    // Screenshots saved after every test
+}
+```
